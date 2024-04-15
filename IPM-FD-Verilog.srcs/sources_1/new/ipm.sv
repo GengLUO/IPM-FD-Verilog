@@ -19,6 +19,7 @@ module ipm #(
 
   // State definitions
   typedef enum logic [1:0] {
+    IDLE,
     FIRST,
     COMPUTE,
     DONE
@@ -97,6 +98,15 @@ module ipm #(
     end
   end
 
+  logic [31:0] fast_result;
+  logic [7:0] fast_result_block[0:N-1];
+  always_comb begin
+    int i;
+    for (i = 0; i < N; i++) begin
+      fast_result[WIDTH-1-i*8-:8] = fast_result_block[i];
+    end
+  end
+
   initial begin
 
     random[0][0] = 8'd43;
@@ -166,7 +176,7 @@ module ipm #(
   // State transition and output logic
   always_ff @(posedge clk_i or negedge reset_ni) begin
     if (!reset_ni) begin
-      ipm_state_q <= FIRST;
+      ipm_state_q <= IDLE;
       i_q <= 0;
       j_q <= 0;
       for (int i = 0; i < N; i++) begin
@@ -180,7 +190,8 @@ module ipm #(
       case (ipm_state_q)
         FIRST: begin
           if (ipm_sel_i) begin
-            for (int i = 0; i < N; i++) begin
+            result[0] <= T ^ U;
+            for (int i = 1; i < N; i++) begin
               result[i] <= 0;
             end
           end
@@ -217,29 +228,72 @@ module ipm #(
     end
   end
 
+  always_comb begin
+    for (int i = 0; i < N; i++) begin
+      fast_result_block[i] = 0;
+    end
+    unique case (operator)
+      ibex_pkg::IPM_OP_MUL: begin
+        fast_result_block[0] = a[index_j] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
+      end
+      ibex_pkg::IPM_OP_HOMOG: begin
+        fast_result_block[0] = b[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
+        for (int i = 1; i < N; i++) begin
+          fast_result_block[i] <= a[i];
+        end
+      end
+      ibex_pkg::IPM_OP_SQUARE: begin
+        fast_result_block[0] = sq_res_block[0];
+        for (int i = 1; i < N; i++) begin
+          fast_result_block[i] = multiplier_results[i-1];
+        end
+      end
+      ibex_pkg::IPM_OP_MASK: begin
+        fast_result_block[0] = a[index_j] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
+        for (int i = k; i < n; i++) begin
+          fast_result_block[i] = random[0][i];
+        end
+      end
+      default:;
+    endcase
+  end
+
 
   // Next state logic
   always_comb begin
     ipm_state_d = ipm_state_q;
     if (ipm_sel_i) begin
       unique case (ipm_state_q)
-        FIRST: ipm_state_d = COMPUTE;
+        IDLE: begin
+          ipm_state_d = FIRST;
+        end
+        FIRST: begin
+          unique case (operator)
+            ibex_pkg::IPM_OP_MUL: begin
+              ipm_state_d = COMPUTE;
+            end
+            ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK: begin
+              ipm_state_d = FIRST; //require 0 cycle, can already get the result
+            end
+            default: ;
+          endcase
+        end
         COMPUTE: begin
           unique case (operator)
             ibex_pkg::IPM_OP_MUL: begin
               ipm_state_d = (i_q == N-1 && j_q == N-1) ? DONE : COMPUTE; //require n^2 cycles to complete
             end
-            ibex_pkg::IPM_OP_MASK: begin
-              ipm_state_d = (j_q == k - 1) ? DONE : COMPUTE;  //require k cycles
-            end
-            ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE: begin
-              ipm_state_d = (j_q == 1) ? DONE : COMPUTE;  //require 1 cycles
-            end
+            // ibex_pkg::IPM_OP_MASK: begin
+            //   ipm_state_d = (j_q == k - 1) ? DONE : COMPUTE;  //require k cycles
+            // end
+            // ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK: begin
+            //   ipm_state_d = (j_q == 1) ? DONE : FIRST;  //require 1 cycles
+            // end
             default: ;
           endcase
         end
         DONE: ipm_state_d = FIRST;
-        default: ipm_state_d = FIRST;
+        default: ipm_state_d = IDLE;
       endcase
     end
   end
@@ -324,7 +378,7 @@ module ipm #(
     i_d = i_q;
     j_d = j_q;
 
-    if (ipm_state_q == COMPUTE) begin
+    if ( (ipm_state_q == FIRST && operator == ibex_pkg::IPM_OP_MUL) || ipm_state_q == COMPUTE) begin
       if (next_q) begin
         if (j_q < N - 1) begin
           j_d = j_q + 1;
@@ -341,12 +395,11 @@ module ipm #(
     end
   end
 
-  assign valid_o = ipm_state_q == DONE;
+  assign valid_o = ipm_state_q == DONE || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
 
   always_comb begin
-    int i;
-    for (i = 0; i < N; i++) begin
-      result_o[WIDTH-1-i*8-:8] = result[i];
+    for (int i = 0; i < N; i++) begin
+      result_o[WIDTH-1-i*8-:8] = operator == ibex_pkg::IPM_OP_MUL ? result[i] : fast_result_block[i];
     end
   end
 
