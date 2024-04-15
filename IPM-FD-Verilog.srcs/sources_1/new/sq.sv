@@ -19,12 +19,12 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module sq(
-    input   logic [31:0]    sq_i,
-    output  logic [31:0]    sq_o
-    );
-    
-    logic [7:0] sq[0:255] = {
+module sq (
+    input  logic [31:0] sq_i,
+    output logic [31:0] sq_o
+);
+
+  logic [7:0] sq[0:255] = {
         8'h00, 8'h01, 8'h04, 8'h05, 8'h10, 8'h11, 8'h14, 8'h15,
         8'h40, 8'h41, 8'h44, 8'h45, 8'h50, 8'h51, 8'h54, 8'h55,
         8'h1b, 8'h1a, 8'h1f, 8'h1e, 8'h0b, 8'h0a, 8'h0f, 8'h0e,
@@ -59,9 +59,9 @@ module sq(
         8'h06, 8'h07, 8'h02, 8'h03, 8'h16, 8'h17, 8'h12, 8'h13
     };
     
-    assign sq_o[31 -: 8] = sq[sq_i[31 -: 8]];
-    assign sq_o[23 -: 8] = sq[sq_i[23 -: 8]];
-    assign sq_o[15 -: 8] = sq[sq_i[15 -: 8]];
-    assign sq_o[7 -: 8]  = sq[sq_i[7  -: 8]];
-    
+  assign sq_o[31-:8] = sq[sq_i[31-:8]];
+  assign sq_o[23-:8] = sq[sq_i[23-:8]];
+  assign sq_o[15-:8] = sq[sq_i[15-:8]];
+  assign sq_o[7-:8]  = sq[sq_i[7-:8]];
+
 endmodule
