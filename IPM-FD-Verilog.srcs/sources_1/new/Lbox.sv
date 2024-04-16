@@ -25,9 +25,7 @@ module Lbox #(
     localparam bit [2:0] N = n - k + 1
 ) (
     input logic [$clog2(k)-1:0] position,
-    //    input   logic   [$clog2(N)-1:0] index       ,
-
-    output logic [8*N-1:0] L_prime
+    output logic [7:0] L_prime[0:N-1]
 );
 
   logic [7:0] L[0:k-1][0:N-1];
@@ -108,12 +106,10 @@ module Lbox #(
       end
     endcase
   end
-  // dynamic concatenation
+
   always_comb begin
-    integer i;
-    L_prime = {8 * N{1'b0}};  // Initialize L_prime to zero
-    for (i = 0; i < N; i++) begin
-      L_prime = L_prime | (L[position][i] << (8 * (N-1-i)));  // Concatenate L elements into L_prime
+    for (int i = 0; i < N; i++) begin
+      L_prime[i] = L[position][i];
     end
   end
 
