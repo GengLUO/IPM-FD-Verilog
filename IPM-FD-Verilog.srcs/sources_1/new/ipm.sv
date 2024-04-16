@@ -105,7 +105,7 @@ module ipm #(
       .L_prime (L_prime)
   );
 
-  logic [ 7:0] rest_result[0:N-1];
+  logic [7:0] rest_result[0:N-1];
 
   initial begin
 
@@ -202,24 +202,6 @@ module ipm #(
               ibex_pkg::IPM_OP_MUL: begin
                 mult_result[index_i] <= mult_result[index_i] ^ T ^ U;
               end
-              ibex_pkg::IPM_OP_MASK: begin
-                mult_result[index_j] <= a[index_j] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
-                for (int i = k; i < n; i++) begin
-                  mult_result[i] <= random[0][i];
-                end
-              end
-              ibex_pkg::IPM_OP_HOMOG: begin
-                mult_result[0] <= b[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
-                for (int i = 1; i < N; i++) begin
-                  mult_result[i] <= a[i];
-                end
-              end
-              ibex_pkg::IPM_OP_SQUARE: begin
-                mult_result[0] <= sq_res_block[0];
-                for (int i = 1; i < N; i++) begin
-                  mult_result[i] <= multiplier_results[i-1];
-                end
-              end
               default;
             endcase
           end
@@ -235,9 +217,6 @@ module ipm #(
       rest_result[i] = 0;
     end
     unique case (operator)
-      ibex_pkg::IPM_OP_MUL: begin
-        rest_result[0] = a[index_j] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
-      end
       ibex_pkg::IPM_OP_HOMOG: begin
         rest_result[0] = b[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
         for (int i = 1; i < N; i++) begin
@@ -285,12 +264,6 @@ module ipm #(
             ibex_pkg::IPM_OP_MUL: begin
               ipm_state_d = (i_q == N-1 && j_q == N-1) ? DONE : COMPUTE; //require n^2 cycles to complete
             end
-            // ibex_pkg::IPM_OP_MASK: begin
-            //   ipm_state_d = (j_q == k - 1) ? DONE : COMPUTE;  //require k cycles
-            // end
-            // ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK: begin
-            //   ipm_state_d = (j_q == 1) ? DONE : FIRST;  //require 1 cycles
-            // end
             default: ;
           endcase
         end
@@ -354,12 +327,10 @@ module ipm #(
         U = multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MASK: begin
-        multiplier_inputs_a[0] = random[0][1];
-        multiplier_inputs_b[0] = L_prime[1];  //[index_j][k]
-        multiplier_inputs_a[1] = random[0][2];
-        multiplier_inputs_b[1] = L_prime[2];  //[index_j][k+1]
-        multiplier_inputs_a[2] = random[0][3];
-        multiplier_inputs_b[2] = L_prime[3];  //[index_j][k+2]
+        for (int i = 0; i < 3; i++) begin
+          multiplier_inputs_a[i] = random[0][i+1];
+          multiplier_inputs_b[i] = L_prime[i+1];
+        end
       end
       ibex_pkg::IPM_OP_HOMOG: begin
         for (int i = 0; i < 3; i++) begin
