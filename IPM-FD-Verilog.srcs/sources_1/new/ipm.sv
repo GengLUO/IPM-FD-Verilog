@@ -88,16 +88,10 @@ module ipm #(
   ibex_pkg::ipm_op_e operator;
   assign operator = ipm_operator_i;
 
-  logic [31:0] sq_res;
-  logic [ 7:0] sq_res_block[0:3];
-  always_comb begin
-    for (int i = 0; i < N; i++) begin
-      sq_res_block[N-1-i] = sq_res[8*i+:8];
-    end
-  end
+  logic [7:0] sq_res_block[0:3];
   sq sq_inst (
       .sq_i(a_i),
-      .sq_o(sq_res)
+      .sq_o(sq_res_block)
   );
 
   //TODO: change position to copy with k

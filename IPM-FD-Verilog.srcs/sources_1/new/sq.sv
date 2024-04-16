@@ -21,7 +21,7 @@
 
 module sq (
     input  logic [31:0] sq_i,
-    output logic [31:0] sq_o
+    output logic [7:0] sq_o[0:3]
 );
 
   logic [7:0] sq[0:255] = {
@@ -59,9 +59,9 @@ module sq (
         8'h06, 8'h07, 8'h02, 8'h03, 8'h16, 8'h17, 8'h12, 8'h13
     };
     
-  assign sq_o[31-:8] = sq[sq_i[31-:8]];
-  assign sq_o[23-:8] = sq[sq_i[23-:8]];
-  assign sq_o[15-:8] = sq[sq_i[15-:8]];
-  assign sq_o[7-:8]  = sq[sq_i[7-:8]];
+  assign sq_o[0] = sq[sq_i[31-:8]];
+  assign sq_o[1] = sq[sq_i[23-:8]];
+  assign sq_o[2] = sq[sq_i[15-:8]];
+  assign sq_o[3]  = sq[sq_i[7-:8]];
 
 endmodule
