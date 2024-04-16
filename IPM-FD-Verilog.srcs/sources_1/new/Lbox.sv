@@ -113,7 +113,7 @@ module Lbox #(
     integer i;
     L_prime = {8 * N{1'b0}};  // Initialize L_prime to zero
     for (i = 0; i < N; i++) begin
-      L_prime = L_prime | (L[position][i] << (8 * i));  // Concatenate L elements into L_prime
+      L_prime = L_prime | (L[position][i] << (8 * (N-1-i)));  // Concatenate L elements into L_prime
     end
   end
 
