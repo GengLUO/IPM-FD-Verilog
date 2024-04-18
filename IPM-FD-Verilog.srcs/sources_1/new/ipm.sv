@@ -1,19 +1,18 @@
 module ipm #(
-    parameter n = 4,
-    parameter k = 1,
-    localparam N = n - k + 1,
-    localparam WIDTH = N * 8
+    parameter bit [2:0] n = 4,
+    parameter bit [1:0] k = 1,
+    localparam bit [2:0] N = n - k + 1
 ) (
     input logic clk_i,
     input logic reset_ni,
-    input logic [WIDTH - 1:0] a_i,
-    input logic [WIDTH - 1:0] b_i,
+    input logic [31:0] a_i,
+    input logic [31:0] b_i,
 
     input logic ipm_en_i,  // dynamic enable signal, for FSM control
     input logic ipm_sel_i,  // static decoder output, for data muxes
     input ibex_pkg::ipm_op_e ipm_operator_i,
 
-    output logic [WIDTH - 1:0] result_o,
+    output logic [31:0] result_o,
     output logic valid_o
 );
 
@@ -111,20 +110,20 @@ module ipm #(
   always_ff @(posedge clk_i or negedge reset_ni) begin
     if (!reset_ni) begin
       position_q <= 0;
-    end else begin
+    end else if (ipm_en) begin
       position_q <= position_d;
     end
   end
 
   always_comb begin : position_update
     position_d = position_q;
-    if (ipm_en && valid_o) begin
+    if (valid_o) begin
       unique case (operator)
         ibex_pkg::IPM_OP_HOMOG: begin
-          position_d = (position_q < k) ? position_q + 1 : 0;
+          position_d = (position_q + 1 < k -1) ? position_q + 1 : 0;
         end
         default: begin
-          position_d = (position_q < k) ? position_q + 1 : 0;
+          position_d = (position_q < k - 1) ? position_q + 1 : 0;
         end
       endcase
     end
@@ -246,7 +245,7 @@ module ipm #(
       ibex_pkg::IPM_OP_HOMOG: begin
         rest_result[0] = b[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
         for (int i = 1; i < N; i++) begin
-          rest_result[i] <= a[i];
+          rest_result[i] = a[i];
         end
       end
       ibex_pkg::IPM_OP_SQUARE: begin
@@ -256,10 +255,13 @@ module ipm #(
         end
       end
       ibex_pkg::IPM_OP_MASK: begin
-        rest_result[0] = a[index_j] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
+        rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
         for (int i = 1; i < n; i++) begin
           rest_result[i] = random[0][i];
         end
+      end
+      ibex_pkg::IPM_OP_UNMASK: begin
+        rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
       end
       default: ;
     endcase
@@ -279,7 +281,7 @@ module ipm #(
             ibex_pkg::IPM_OP_MUL: begin
               ipm_state_d = COMPUTE;
             end
-            ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK: begin
+            ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_UNMASK: begin
               ipm_state_d = FIRST;  //require 0 cycle, can already get the result
             end
             default: ;
@@ -367,6 +369,12 @@ module ipm #(
       ibex_pkg::IPM_OP_SQUARE: begin
         for (int i = 0; i < 3; i++) begin
           multiplier_inputs_a[i] = sq_res_block[i+1];
+          multiplier_inputs_b[i] = L_prime[i+1];
+        end
+      end
+      ibex_pkg::IPM_OP_UNMASK: begin
+        for (int i = 0; i < 3; i++) begin
+          multiplier_inputs_a[i] = a[i+1];
           multiplier_inputs_b[i] = L_prime[i+1];
         end
       end

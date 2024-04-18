@@ -66,7 +66,16 @@ module ipm_tb;
         ipm_en_i = 1;
         ipm_sel_i = 1;
 
-        #5; //wait for mul to complete
+        // Wait for operation to complete
+//        #30
+//        ipm_en_i = 0;
+//        ipm_sel_i = 0;
+//        #30
+//        ipm_en_i = 1;
+//        ipm_sel_i = 1;
+//        if(op == ibex_pkg::IPM_OP_MUL)
+//            #10;
+        #5
         wait (valid_o == 1);  
         if (result_o == expected_result) begin
             $display("Test successful completed. Result: %h", result_o);
@@ -76,11 +85,15 @@ module ipm_tb;
             $display("Error!. Result result_o: %h, expected: %h", result_o, expected_result);
             correct = 1'bz;
         end
-        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10; 
+        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10;
         ipm_en_i = 0;
         ipm_sel_i = 0;
         #10;
         
+//        // Reset control signals
+//        ipm_en_i = 0;
+//        ipm_sel_i = 0;
+    endtask
 
     // Clock generation
     always #5 clk_i = ~clk_i; // Generate a clock with a period of 10ns
@@ -102,7 +115,7 @@ module ipm_tb;
         #50;
         reset_ni = 1; // Release reset
         #50;
-        
+        //n=4, k=1
 //        perform_operation(32'hac1665fd, 32'h4ba78430, ibex_pkg::IPM_OP_MUL, 32'hef23bd40);
 //        perform_operation(32'hac1665fd, 32'h4ba78430, ibex_pkg::IPM_OP_MUL, 32'hef23bd40);
 //        perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'ha8413f61);
@@ -117,6 +130,16 @@ module ipm_tb;
         /////////////MULT
         perform_operation(32'hf5413f61, 32'he3413f61, ibex_pkg::IPM_OP_MUL, 32'ha2d56509);
         perform_operation(32'ha8413f61, 32'hbe413f61, ibex_pkg::IPM_OP_MUL, 32'hd89b0dcd);
+        /////////////HOMOG
+        perform_operation(32'ha2d56509, 32'hd89b0dcd, ibex_pkg::IPM_OP_HOMOG, 32'h66d56509);
+        ////////////SQUARE
+        perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'h575e2de3);
+        perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2);
+        /////////////HOMOG
+        perform_operation(32'h575e2de3, 32'hb68c9dc2, ibex_pkg::IPM_OP_HOMOG, 32'hd05e2de3);
+        //////////////UNMASK
+        perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
+        perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         $finish;
     end
 
