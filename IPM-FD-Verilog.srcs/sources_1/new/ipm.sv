@@ -380,7 +380,7 @@ module ipm #(
 
     // if (ipm_en) begin
       if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL
-        if (ipm_state_q != IDLE && request_q) begin  //request_q == signal to indicate 'MOVE'
+        if ((ipm_state_q != IDLE && ipm_state_q != DONE) && request_q) begin  //request_q == signal to indicate 'MOVE'
           if (j_q < N - 1) begin  //one row is not finished yet
             i_d = i_q;
             j_d = j_q + 1;  //continue to the right cell
