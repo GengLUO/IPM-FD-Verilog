@@ -193,11 +193,12 @@ package ibex_pkg;
     MD_OP_REM
   } md_op_e;
 
-  typedef enum logic [1:0] {
+  typedef enum logic [2:0] {
     IPM_OP_MUL,
     IPM_OP_SQUARE,
     IPM_OP_HOMOG,
-    IPM_OP_MASK
+    IPM_OP_MASK,
+    IPM_OP_UNMASK
   } ipm_op_e;
 
   //////////////////////////////////
