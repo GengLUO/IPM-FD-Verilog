@@ -25,8 +25,8 @@ module ipm_tb;
 
 
     // Parameters
-    localparam int n = 4;
-    localparam int k = 1;
+    localparam int n = 5;
+    localparam int k = 2;
 
     // Testbench signals
     logic clk_i;
@@ -39,20 +39,8 @@ module ipm_tb;
     logic [31:0] expected_result;
     logic valid_o;
     ibex_pkg::ipm_op_e ipm_operator_i;
+    logic correct;
 
-    // Instantiate the Unit Under Test (UUT)
-//    ipmmul_ex #(
-//        .N(N)
-//    ) uut (
-//        .clk_i(clk_i),
-//        .reset_ni(reset_ni),
-//        .a_i(a_i),
-//        .b_i(b_i),
-//        .ipm_en_i(ipm_en_i),
-//        .ipm_sel_i(ipm_sel_i),
-//        .result_o(result_o),
-//        .valid_o(valid_o)
-//    );
     ipm #(
         .n(n),
         .k(k)
@@ -68,123 +56,67 @@ module ipm_tb;
         .valid_o(valid_o)
     );
 
+    task perform_operation(input [31:0] a, input [31:0] b, input ibex_pkg::ipm_op_e op, input [31:0] exp_result);
+        a_i = a;
+        b_i = b;
+        expected_result = exp_result;
+        ipm_operator_i = op;
+
+        // Start the operation
+        ipm_en_i = 1;
+        ipm_sel_i = 1;
+
+        #5; //wait for mul to complete
+        wait (valid_o == 1);  
+        if (result_o == expected_result) begin
+            $display("Test successful completed. Result: %h", result_o);
+            correct = 1;
+        end
+        else begin
+            $display("Error!. Result result_o: %h, expected: %h", result_o, expected_result);
+            correct = 1'bz;
+        end
+        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10; 
+        ipm_en_i = 0;
+        ipm_sel_i = 0;
+        #10;
+        
+
     // Clock generation
     always #5 clk_i = ~clk_i; // Generate a clock with a period of 10ns
 
     // Testbench initialia_iation and stimulus
     initial begin
         // Initialia_ie Inputs
-        clk_i = 0;
+        clk_i = 1;
         reset_ni = 0;
         a_i = 0;
         b_i = 0;
         ipm_en_i = 0;
         ipm_sel_i = 0;
         ipm_operator_i = ibex_pkg::IPM_OP_MUL;
+        expected_result = 0;
+        correct = 0;
 
         // Reset the design
         #50;
         reset_ni = 1; // Release reset
         #50;
         
+//        perform_operation(32'hac1665fd, 32'h4ba78430, ibex_pkg::IPM_OP_MUL, 32'hef23bd40);
+//        perform_operation(32'hac1665fd, 32'h4ba78430, ibex_pkg::IPM_OP_MUL, 32'hef23bd40);
+//        perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'ha8413f61);
+//        perform_operation(32'h63343a1e, 32'h6b7a52da, ibex_pkg::IPM_OP_HOMOG, 32'hd5343a1e);
+//        perform_operation(32'ha8413f61, 32'h6b7a52da, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2);
+        //////////////MASK
+        perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hf5413f61);
+        perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'ha8413f61);
         
-        a_i = 32'hac1665fd; // Example value
-        b_i = 32'h4ba78430; // Example value
-        expected_result = 32'hef23bd40;
-
-        // Start the operation
-        ipm_en_i = 1;
-        ipm_sel_i = 1;
-
-        // Wait for operation to complete
-        wait (valid_o == 1);
-        $display("Operation completed. Result result_o: %h, expected: %h", result_o, 32'hef23bd40);
-        #20;
-        ipm_en_i = 0;
-        ipm_sel_i = 0;
-        
-                // Add more stimuli or checks as needed
-
-        // Finish simulation
-        #50;
-        a_i = 32'hac1665fd; // Example value
-        b_i = 32'h4ba78430; // Example value
-        expected_result = 32'hef23bd40;
-
-        // Start the operation
-        ipm_en_i = 1;
-        ipm_sel_i = 1;
-
-        // Wait for operation to complete
-        wait (valid_o == 1);
-        $display("Operation completed. Result result_o: %h, expected: %h", result_o, 32'hef23bd40);
-        #20;
-        ipm_en_i = 0;
-        ipm_sel_i = 0;
-
-        // Add more stimuli or checks as needed
-
-        // Finish simulation
-        #50;
-        ipm_operator_i = ibex_pkg::IPM_OP_MASK;
-        a_i = 32'h21000000; // Example value
-        b_i = 32'h00000000; // Example value
-        expected_result = 32'ha8413f61;
-
-        // Start the operation
-        ipm_en_i = 1;
-        ipm_sel_i = 1;
-
-        // Wait for operation to complete
-        #10
-        $display("Operation completed. Result result_o: %h, expected: %h", result_o, 32'ha8413f61);
-        #20;
-        ipm_en_i = 0;
-        ipm_sel_i = 0;
-
-        // Add more stimuli or checks as needed
-        
-        // Finish simulation
-        #50;
-        ipm_operator_i = ibex_pkg::IPM_OP_HOMOG;
-        a_i = 32'h63343a1e; // Example value
-        b_i = 32'h6b7a52da; // Example value
-        expected_result = 32'hd5343a1e;
-
-        // Start the operation
-        ipm_en_i = 1;
-        ipm_sel_i = 1;
-
-        // Wait for operation to complete
-        #10
-        $display("Operation completed. Result result_o: %h, expected: %h", result_o, 32'hd5343a1e);
-        #20;
-        ipm_en_i = 0;
-        ipm_sel_i = 0;
-
-        // Add more stimuli or checks as needed
-        
-                // Finish simulation
-        #50;
-        ipm_operator_i = ibex_pkg::IPM_OP_SQUARE;
-        a_i = 32'ha8413f61; // Example value
-        b_i = 32'h6b7a52da; // Example value
-        expected_result = 32'hb68c9dc2;
-
-        // Start the operation
-        ipm_en_i = 1;
-        ipm_sel_i = 1;
-
-        // Wait for operation to complete
-        #10
-        $display("Operation completed. Result result_o: %h, expected: %h", result_o, 32'hb68c9dc2);
-        #20;
-        ipm_en_i = 0;
-        ipm_sel_i = 0;
-
-        // Finish simulation
-        #50;
-        
+        perform_operation(32'h37000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'he3413f61);
+        perform_operation(32'h37000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hbe413f61);
+        /////////////MULT
+        perform_operation(32'hf5413f61, 32'he3413f61, ibex_pkg::IPM_OP_MUL, 32'ha2d56509);
+        perform_operation(32'ha8413f61, 32'hbe413f61, ibex_pkg::IPM_OP_MUL, 32'hd89b0dcd);
         $finish;
     end
 
