@@ -95,15 +95,41 @@ module ipm #(
   );
 
   //TODO: change position to copy with k
-  logic [$clog2(k)-1:0] position = 0;
-  logic [          7:0] L_prime      [0:N-1];
+  logic [$clog2(k)-1:0] position_Lbox, position_q, position_d;
+  logic [7:0] L_prime[0:N-1];
   Lbox #(
       .n(n),
       .k(k)
   ) Lbox_inst (
-      .position(position),
+      .position(position_Lbox),
       .L_prime (L_prime)
   );
+
+  //homiginization operation start from the second row
+  assign position_Lbox = (operator == ibex_pkg::IPM_OP_HOMOG) ? position_q + 1 : position_q;
+
+  always_ff @(posedge clk_i or negedge reset_ni) begin
+    if (!reset_ni) begin
+      position_q <= 0;
+    end else begin
+      position_q <= position_d;
+    end
+  end
+
+  always_comb begin : position_update
+    position_d = position_q;
+    if (ipm_en && valid_o) begin
+      unique case (operator)
+        ibex_pkg::IPM_OP_HOMOG: begin
+          position_d = (position_q < k) ? position_q + 1 : 0;
+        end
+        default: begin
+          position_d = (position_q < k) ? position_q + 1 : 0;
+        end
+      endcase
+    end
+  end
+
 
   logic [7:0] rest_result[0:N-1];
 
@@ -231,7 +257,7 @@ module ipm #(
       end
       ibex_pkg::IPM_OP_MASK: begin
         rest_result[0] = a[index_j] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
-        for (int i = k; i < n; i++) begin
+        for (int i = 1; i < n; i++) begin
           rest_result[i] = random[0][i];
         end
       end
@@ -277,14 +303,14 @@ module ipm #(
     if (!reset_ni) begin
       request_q <= 0;  //only used for ipmmul
       U_prime_q <= 0;  //only used for ipmmul
-    end else begin
+    end else if (ipm_en) begin
       request_q <= request_d;  //only used for ipmmul
       U_prime_q <= U_prime_d;  //only used for ipmmul
     end
   end
 
   always_comb begin
-    request_d = 0;
+    request_d = 1;
     U_prime_d = 0;
     for (int i = 0; i < 3; i++) begin
       multiplier_inputs_a[i] = 0;
@@ -295,12 +321,12 @@ module ipm #(
 
     unique case (operator)
       ibex_pkg::IPM_OP_MUL: begin
-        if (ipm_en) begin
-          if (i_d == j_d) begin
-            request_d = 1;
+        // if (ipm_en) begin
+          if (i_d == j_d) begin // next cell is at the diagonal, U_prime is 0, need random data for T
+            request_d = 1;  //need to 'MOVE'
             U_prime_d = 0;
-          end else begin
-            if (request_q) begin
+          end else begin  //next cell is not at the diagonal
+            if (request_q) begin  // toggle the request
               request_d = 0;
               U_prime_d = random[i_d][j_d];
             end else begin
@@ -309,7 +335,7 @@ module ipm #(
             end
           end
         end
-      end
+      // end
       default: ;
     endcase
 
@@ -348,26 +374,29 @@ module ipm #(
     endcase
   end
 
-  // Index update logic
-  always_comb begin
+  always_comb begin : Index_update_logic
     i_d = i_q;
     j_d = j_q;
 
-    if ((ipm_state_q == FIRST && operator == ibex_pkg::IPM_OP_MUL) || ipm_state_q == COMPUTE) begin
-      if (request_q) begin
-        if (j_q < N - 1) begin
-          j_d = j_q + 1;
-        end else begin
-          i_d = (i_q < N - 1) ? i_q + 1 : 0;
-          j_d = i_d;
+    // if (ipm_en) begin
+      if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL
+        if (ipm_state_q != IDLE && request_q) begin  //request_q == signal to indicate 'MOVE'
+          if (j_q < N - 1) begin  //one row is not finished yet
+            i_d = i_q;
+            j_d = j_q + 1;  //continue to the right cell
+          end else begin  // one row is finished (at the end of one row)
+            i_d = i_q + 1;  // go to next row
+            j_d = i_d;  // j starts from the diagonal
+          end
+        end else begin  //i and j do not change
+          i_d = i_q;
+          j_d = j_q;
         end
       end else begin
-        j_d = j_q;
+        i_d = 0;
+        j_d = 0;
       end
-    end else begin
-      i_d = 0;
-      j_d = 0;
-    end
+    // end
   end
 
   assign valid_o = ipm_state_q == DONE || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
