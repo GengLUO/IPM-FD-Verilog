@@ -26,11 +26,13 @@ module trivium_top #(
   trivium_INST
   (  .clk(clk_i), .rst(wRst), .en(wEn), .iv_i(wIV), .key_i(key_i), .stream_o(wStream) );
   
-  // State definition  
-  localparam sRST       = 3'b000;
-  localparam sINIT      = 3'b001;
-  localparam sFETCH     = 3'b010;
-  localparam sIDLE      = 3'b011;
+  // State definitions
+  typedef enum logic [1:0] {
+    sRST,
+    sINIT,
+    sFETCH,
+    sIDLE
+  } trivium_state_e;
   
   // Intervals for FSM (initialization of Trivium, fetching a word)
   localparam int unsigned INIT_INTERVAL  = 1152 / OUTPUT_BITS;
@@ -39,7 +41,7 @@ module trivium_top #(
   reg [$clog2(INIT_INTERVAL):0]   rCnt_Current, wCnt_Next;
   
   // FSM state
-  reg [2:0] rFSM_Current, wFSM_Next; 
+  trivium_state_e rFSM_Current, wFSM_Next; 
   
   // Register updates
   always_ff @(posedge clk_i)
@@ -136,7 +138,8 @@ module trivium_top #(
     // the prng_o updates when wEn == 1
     
     assign wRst = (rFSM_Current==sRST) ? 1 : 0;
-    assign wEn = (rFSM_Current==sINIT || rFSM_Current==sFETCH) ? 1 : 0;
+    // assign wEn = (rFSM_Current==sINIT || rFSM_Current==sFETCH) ? 1 : 0;
+    assign wEn = req_i;
     assign busy_o = (rFSM_Current==sIDLE) ? 0 : 1;
     assign ready_o = (rFSM_Current==sFETCH || rFSM_Current==sIDLE) ? 1 : 0;
     

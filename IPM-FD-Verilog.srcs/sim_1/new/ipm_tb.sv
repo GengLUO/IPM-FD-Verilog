@@ -27,6 +27,7 @@ module ipm_tb;
     // Parameters
     localparam int n = 5;
     localparam int k = 2;
+    localparam int N = n - k + 1;
 
     // Testbench signals
     logic clk_i;
@@ -40,6 +41,7 @@ module ipm_tb;
     logic valid_o;
     ibex_pkg::ipm_op_e ipm_operator_i;
     logic correct;
+    logic [31:0] temp;
 
     ipm #(
         .n(n),
@@ -65,30 +67,34 @@ module ipm_tb;
         // Start the operation
         ipm_en_i = 1;
         ipm_sel_i = 1;
+        
 
-        // Wait for operation to complete
-//        #30
-//        ipm_en_i = 0;
-//        ipm_sel_i = 0;
-//        #30
-//        ipm_en_i = 1;
-//        ipm_sel_i = 1;
-//        if(op == ibex_pkg::IPM_OP_MUL)
-//            #10;
-        #5
-        wait (valid_o == 1);  
+//        if(op == ibex_pkg::IPM_OP_MUL) begin
+//            #((10*N*N-5)/5);
+//            ipm_en_i = 0;
+//            ipm_sel_i = 0;
+//            #40;
+//            ipm_en_i = 1;
+//            ipm_sel_i = 1;
+//            #((10*N*N-5)/5*4);
+//        end else #5;
+        if(op == ibex_pkg::IPM_OP_MUL) begin
+            #((10*N*N-5)/5);
+            #((10*N*N-5)/5*4);
+        end else #5;
         if (result_o == expected_result) begin
             $display("Test successful completed. Result: %h", result_o);
             correct = 1;
         end
         else begin
             $display("Error!. Result result_o: %h, expected: %h", result_o, expected_result);
-            correct = 1'bz;
+            correct = 1'bx;
         end
-        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10;
+//        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10;
+        #5;
         ipm_en_i = 0;
         ipm_sel_i = 0;
-        #10;
+//        #20;
         
 //        // Reset control signals
 //        ipm_en_i = 0;
@@ -114,7 +120,7 @@ module ipm_tb;
         // Reset the design
         #50;
         reset_ni = 1; // Release reset
-        #50;
+        #500;
         //n=4, k=1
 //        perform_operation(32'hac1665fd, 32'h4ba78430, ibex_pkg::IPM_OP_MUL, 32'hef23bd40);
 //        perform_operation(32'hac1665fd, 32'h4ba78430, ibex_pkg::IPM_OP_MUL, 32'hef23bd40);
@@ -140,8 +146,115 @@ module ipm_tb;
         //////////////UNMASK
         perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
+        
+        #50;
+        perform_operation_with_random_masks(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'h21000000);
+//        perform_mult_with_random_masks(32'hf5413f61, 32'he3413f61, ibex_pkg::IPM_OP_MUL, 32'h21000000);
         $finish;
     end
 
+    task perform_operation_with_random_masks(input [31:0] a, input [31:0] b, input ibex_pkg::ipm_op_e op, input [31:0] exp_result);
+        a_i = a;
+        b_i = b;
+        expected_result = exp_result;
+        ipm_operator_i = op;
+
+        for (int i = 0; i < k; i ++) begin
+        // Start the operation
+        ipm_en_i = 1;
+        ipm_sel_i = 1;
+        
+        if(op == ibex_pkg::IPM_OP_MUL) begin
+            #((10*N*N-5)/5);
+            #((10*N*N-5)/5*4);
+        end else #5;
+        temp = result_o;
+        #5;
+        end
+        
+        
+        a_i = temp;
+        ipm_operator_i = ibex_pkg::IPM_OP_UNMASK;
+        
+        for (int i = 0; i < k; i ++) begin
+        // Start the operation
+        ipm_en_i = 1;
+        ipm_sel_i = 1;
+        
+        if(op == ibex_pkg::IPM_OP_MUL) begin
+            #((10*N*N-5)/5);
+            #((10*N*N-5)/5*4);
+        end else #5;
+        temp = result_o;
+        #5;
+        end
+
+        
+        
+        if (result_o == expected_result) begin
+            $display("Test successful completed. Result: %h", result_o);
+            correct = 1;
+        end
+        else begin
+            $display("Error!. Result result_o: %h, expected: %h", result_o, expected_result);
+            correct = 1'bx;
+        end
+//        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10;
+        #5;
+        ipm_en_i = 0;
+        ipm_sel_i = 0;
+    endtask;
+    
+//        task perform_mult_with_random_masks(input [31:0] a, input [31:0] b, input ibex_pkg::ipm_op_e op, input [31:0] exp_result);
+//        a_i = a;
+//        b_i = b;
+//        expected_result = exp_result;
+//        ipm_operator_i = op;
+
+//        for (int i = 0; i < k; i ++) begin
+//        // Start the operation
+//        ipm_en_i = 1;
+//        ipm_sel_i = 1;
+        
+//        if(op == ibex_pkg::IPM_OP_MUL) begin
+//            #((10*N*N-5)/5);
+//            #((10*N*N-5)/5*4);
+//        end else #5;
+//        temp = result_o;
+//        #5;
+//        end
+        
+        
+//        a_i = temp;
+//        ipm_operator_i = ibex_pkg::IPM_OP_UNMASK;
+        
+//        for (int i = 0; i < k; i ++) begin
+//        // Start the operation
+//        ipm_en_i = 1;
+//        ipm_sel_i = 1;
+        
+//        if(op == ibex_pkg::IPM_OP_MUL) begin
+//            #((10*N*N-5)/5);
+//            #((10*N*N-5)/5*4);
+//        end else #5;
+//        temp = result_o;
+//        #5;
+//        end
+
+        
+        
+//        if (result_o == expected_result) begin
+//            $display("Test successful completed. Result: %h", result_o);
+//            correct = 1;
+//        end
+//        else begin
+//            $display("Error!. Result result_o: %h, expected: %h", result_o, expected_result);
+//            correct = 1'bx;
+//        end
+////        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10;
+//        #5;
+//        ipm_en_i = 0;
+//        ipm_sel_i = 0;
+//    endtask;
 endmodule
 
