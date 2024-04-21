@@ -86,12 +86,21 @@ module trivium_top #(
            
         sFETCH :
           begin
-            if ( rCnt_Current == $bits(rCnt_Current)'(FETCH_INTERVAL - 1) ) begin
-              wFSM_Next = sIDLE;
-              wCnt_Next = 0;
-            end else begin
+//            if ( rCnt_Current == $bits(rCnt_Current)'(FETCH_INTERVAL - 1) ) begin
+//              wFSM_Next = sIDLE;
+//              wCnt_Next = 0;
+//            end else 
+//            begin
+//              wFSM_Next = sFETCH;
+//              wCnt_Next = rCnt_Current + 1;
+//            end
+            wCnt_Next = 0;
+            if ( req_i == 1 ) begin
               wFSM_Next = sFETCH;
-              wCnt_Next = rCnt_Current + 1;
+            end else if (refr_i == 1) begin
+              wFSM_Next = sRST;            
+            end else begin
+              wFSM_Next = sIDLE;
             end
           end 
  
@@ -116,11 +125,15 @@ module trivium_top #(
     end 
     
     
-    always_ff @(posedge clk_i)
-    begin
-      if (rFSM_Current == sFETCH)
-        prng_o <= wStream;
-    end 
+//    always_ff @(posedge clk_i)
+//    begin
+////      if (rFSM_Current == sFETCH)
+//        prng_o <= wStream;
+//    end 
+    
+    assign prng_o = wStream;
+    //when rFSM_Current == sFETCH, stores the value
+    // the prng_o updates when wEn == 1
     
     assign wRst = (rFSM_Current==sRST) ? 1 : 0;
     assign wEn = (rFSM_Current==sINIT || rFSM_Current==sFETCH) ? 1 : 0;
