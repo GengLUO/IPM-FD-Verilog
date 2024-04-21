@@ -42,6 +42,9 @@ module ipm_tb;
     ibex_pkg::ipm_op_e ipm_operator_i;
     logic correct;
     logic [31:0] temp;
+    logic [31:0] temp1 [0:1];
+    logic [31:0] temp2 [0:1];
+    logic [31:0] temp3 [0:1];
 
     ipm #(
         .n(n),
@@ -148,8 +151,8 @@ module ipm_tb;
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         
         #50;
-        perform_operation_with_random_masks(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'h21000000);
-//        perform_mult_with_random_masks(32'hf5413f61, 32'he3413f61, ibex_pkg::IPM_OP_MUL, 32'h21000000);
+//        perform_operation_with_random_masks(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'h21000000);
+        perform_mult_with_random_masks(32'h04000000, 32'h04000000, ibex_pkg::IPM_OP_MUL, 32'h10000000);
         $finish;
     end
 
@@ -205,56 +208,57 @@ module ipm_tb;
         ipm_sel_i = 0;
     endtask;
     
-//        task perform_mult_with_random_masks(input [31:0] a, input [31:0] b, input ibex_pkg::ipm_op_e op, input [31:0] exp_result);
-//        a_i = a;
-//        b_i = b;
-//        expected_result = exp_result;
-//        ipm_operator_i = op;
+    task perform_mult_with_random_masks(input [31:0] a, input [31:0] b, input ibex_pkg::ipm_op_e op, input [31:0] exp_result);
+        a_i = a;
+        b_i = 0;
 
-//        for (int i = 0; i < k; i ++) begin
-//        // Start the operation
-//        ipm_en_i = 1;
-//        ipm_sel_i = 1;
-        
-//        if(op == ibex_pkg::IPM_OP_MUL) begin
-//            #((10*N*N-5)/5);
-//            #((10*N*N-5)/5*4);
-//        end else #5;
-//        temp = result_o;
-//        #5;
-//        end
-        
-        
-//        a_i = temp;
-//        ipm_operator_i = ibex_pkg::IPM_OP_UNMASK;
-        
-//        for (int i = 0; i < k; i ++) begin
-//        // Start the operation
-//        ipm_en_i = 1;
-//        ipm_sel_i = 1;
-        
-//        if(op == ibex_pkg::IPM_OP_MUL) begin
-//            #((10*N*N-5)/5);
-//            #((10*N*N-5)/5*4);
-//        end else #5;
-//        temp = result_o;
-//        #5;
-//        end
+        ipm_operator_i = ibex_pkg::IPM_OP_MASK;
 
+        for (int i = 0; i < k; i ++) begin
+        // Start the operation
+        ipm_en_i = 1;
+        ipm_sel_i = 1;
         
+        if(ipm_operator_i == ibex_pkg::IPM_OP_MUL) begin
+            #((10*N*N-5)/5);
+            #((10*N*N-5)/5*4);
+        end else #5;
+        temp1[i] = result_o;
+        #5;
+        end
         
-//        if (result_o == expected_result) begin
-//            $display("Test successful completed. Result: %h", result_o);
-//            correct = 1;
-//        end
-//        else begin
-//            $display("Error!. Result result_o: %h, expected: %h", result_o, expected_result);
-//            correct = 1'bx;
-//        end
-////        if(op != ibex_pkg::IPM_OP_MUL) #5; else #10;
-//        #5;
-//        ipm_en_i = 0;
-//        ipm_sel_i = 0;
-//    endtask;
+        a_i = b;
+        b_i = 0;
+        for (int i = 0; i < k; i ++) begin
+        // Start the operation
+        ipm_en_i = 1;
+        ipm_sel_i = 1;
+        
+        if(ipm_operator_i == ibex_pkg::IPM_OP_MUL) begin
+            #((10*N*N-5)/5);
+            #((10*N*N-5)/5*4);
+        end else #5;
+        temp2[i] = result_o;
+        #5;
+        end
+        
+        /////////////MULT
+        perform_operation(temp1[0], temp2[0], ibex_pkg::IPM_OP_MUL, 32'ha2d56509);
+        temp3[0] = result_o;
+        perform_operation(temp1[1], temp2[1], ibex_pkg::IPM_OP_MUL, 32'hd89b0dcd);
+        temp3[1] = result_o;
+        /////////////HOMOG
+        perform_operation(temp3[0], temp3[1], ibex_pkg::IPM_OP_HOMOG, 32'h66d56509);
+        temp3[1] = {result_o[31:24], temp3[0][23:0]};
+//        ////////////SQUARE
+//        perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'h575e2de3);
+//        perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2);
+//        /////////////HOMOG
+//        perform_operation(32'h575e2de3, 32'hb68c9dc2, ibex_pkg::IPM_OP_HOMOG, 32'hd05e2de3);
+        //////////////UNMASK
+        perform_operation(temp3[0], 32'h00000000, ibex_pkg::IPM_OP_UNMASK, exp_result);
+        perform_operation(temp3[1], 32'h00000000, ibex_pkg::IPM_OP_UNMASK, exp_result);
+        
+    endtask;
 endmodule
 
