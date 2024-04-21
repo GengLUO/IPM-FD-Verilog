@@ -1,11 +1,11 @@
-//`timescale 1ns / 1ps
+// `timescale 1ns / 1ps
 
 module trivium_top #(
-    parameter   int   WORDSIZE = 24,
-    parameter   int   OUTPUT_BITS = 24
+    parameter   int   WORDSIZE = 32,
+    parameter   int   OUTPUT_BITS = 8
   )
   (
-    input   logic                    clk_i, rst_i,
+    input   logic                    clk_i, reset_ni,
     input   logic                    req_i, refr_i,
     input   logic [79:0]             key_i,
     output  logic [WORDSIZE-1:0]     prng_o,
@@ -44,7 +44,7 @@ module trivium_top #(
   // Register updates
   always_ff @(posedge clk_i)
   begin
-    if (rst_i==1)
+    if (!reset_ni)
       begin
         rFSM_Current <= sRST;
         rCnt_Current <= 0;

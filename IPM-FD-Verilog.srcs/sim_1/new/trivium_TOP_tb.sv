@@ -26,7 +26,7 @@ module trivium_TOP_tb;
   parameter int OUTPUT_BITS = 24;
 
   // Inputs
-  logic clk_i, rst_i, req_i, refr_i;
+  logic clk_i, reset_ni, req_i, refr_i;
   logic [79:0] key_i;
 
   // Outputs
@@ -39,7 +39,7 @@ module trivium_TOP_tb;
       .OUTPUT_BITS(OUTPUT_BITS)
   ) uut (
       .clk_i(clk_i), 
-      .rst_i(rst_i), 
+      .reset_ni(reset_ni), 
       .req_i(req_i), 
       .refr_i(refr_i), 
       .key_i(key_i), 
@@ -57,14 +57,14 @@ module trivium_TOP_tb;
   // Test sequence
   initial begin
     // Initialize Inputs
-    rst_i = 1;
+    reset_ni = 0;
     req_i = 0;
     refr_i = 0;
     key_i = 80'h00112233445566778899;  // Example key
 
     // Reset the system
     #100;
-    rst_i = 0;
+    reset_ni = 1;
 
     // Wait for device to be ready
 //    #50;
