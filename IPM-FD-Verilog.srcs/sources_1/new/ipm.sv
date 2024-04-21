@@ -130,6 +130,47 @@ module ipm #(
     end
   end
 
+  logic req;
+  logic refr;
+  logic [79:0] key;
+  logic [24-1:0] prng;
+  logic busy;
+  logic ready;
+
+  // Trivium instance 
+  trivium_top #(
+      .WORDSIZE(24),
+      .OUTPUT_BITS(24)
+  ) trivium (
+      .clk_i(clk_i), 
+      .reset_ni(reset_ni), 
+      .req_i(req), 
+      .refr_i(refr), 
+      .key_i(key), 
+      .prng_o(prng), 
+      .busy_o(busy), 
+      .ready_o(ready)
+  );
+
+  always_comb begin : trivium_req_ctrl
+    req = 0;
+    refr = 0;
+    key = 80'h00112233445566778899;
+
+    if (ipm_en) begin
+      unique case (operator)
+      ibex_pkg::IPM_OP_MUL: begin
+        // req = 1;
+        req = request_q;
+      end
+      ibex_pkg::IPM_OP_MASK: begin
+        req = (position_q == $bits(position_q)'(0) ) ? 1 : 0;
+      end
+      default: ;
+    endcase
+    end
+  end
+
   logic [7:0] rest_result[0:N-1];
 
   logic [7:0] gf_inv [0:255] = {
