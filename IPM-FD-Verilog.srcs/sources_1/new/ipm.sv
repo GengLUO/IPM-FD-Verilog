@@ -1,6 +1,6 @@
 module ipm #(
-    parameter bit [2:0] n = 4,
-    parameter bit [1:0] k = 1,
+    parameter  bit [2:0] n = 4,
+    parameter  bit [1:0] k = 1,
     localparam bit [2:0] N = n - k + 1
 ) (
     input logic clk_i,
@@ -121,10 +121,10 @@ module ipm #(
     if (valid_o) begin
       unique case (operator)
         ibex_pkg::IPM_OP_HOMOG: begin
-          position_d = (position_q + 1 < $bits(position_d)'(k -1) ) ? position_q + 1 : 0;
+          position_d = (position_q + 1 < $bits(position_d)'(k - 1)) ? position_q + 1 : 0;
         end
         default: begin
-          position_d = (position_q < $bits(position_d)' (k - 1) ) ? position_q + 1 : 0;
+          position_d = (position_q < $bits(position_d)'(k - 1)) ? position_q + 1 : 0;
         end
       endcase
     end
@@ -142,32 +142,32 @@ module ipm #(
       .WORDSIZE(24),
       .OUTPUT_BITS(24)
   ) trivium (
-      .clk_i(clk_i), 
-      .reset_ni(reset_ni), 
-      .req_i(req), 
-      .refr_i(refr), 
-      .key_i(key), 
-      .prng_o(prng), 
-      .busy_o(busy), 
+      .clk_i(clk_i),
+      .reset_ni(reset_ni),
+      .req_i(req),
+      .refr_i(refr),
+      .key_i(key),
+      .prng_o(prng),
+      .busy_o(busy),
       .ready_o(ready)
   );
 
   always_comb begin : trivium_req_ctrl
-    req = 0;
+    req  = 0;
     refr = 0;
-    key = 80'h00112233445566778899;
+    key  = 80'h00112233445566778899;
 
     if (ipm_en) begin
       unique case (operator)
-      ibex_pkg::IPM_OP_MUL: begin
-        // req = 1;
-        req = request_q;
-      end
-      ibex_pkg::IPM_OP_MASK: begin
-        req = (position_q == $bits(position_q)'(0) ) ? 1 : 0;
-      end
-      default: ;
-    endcase
+        ibex_pkg::IPM_OP_MUL: begin
+          // req = 1;
+          req = request_q;
+        end
+        ibex_pkg::IPM_OP_MASK: begin
+          req = (position_q == $bits(position_q)'(0)) ? 1 : 0;
+        end
+        default: ;
+      endcase
     end
   end
 
@@ -228,7 +228,7 @@ module ipm #(
       ipm_state_q <= ipm_state_d;
       i_q <= i_d;
       j_q <= j_d;
-      
+
       mult_result <= rest_result;
 
       // case (ipm_state_q)
@@ -249,7 +249,7 @@ module ipm #(
       //   end
       //   default: ;
       // endcase
-      
+
       // if (operator == ibex_pkg::IPM_OP_MUL) begin
       //   mult_result <= rest_result;
       // end
@@ -267,11 +267,11 @@ module ipm #(
       rest_result[i] = 0;
     end
     unique case (operator)
-      ibex_pkg::IPM_OP_MUL: begin 
+      ibex_pkg::IPM_OP_MUL: begin
         // for (int i = 0; i < N; i++) begin
         //   rest_result[i] = mult_result[i];
         // end
-        
+
         rest_result[index_i] = mult_result[index_i] ^ T ^ U;
         unique case (ipm_state_q)
           FIRST: begin
@@ -285,19 +285,19 @@ module ipm #(
           end
           default: ;
         endcase
-      //         ibex_pkg::IPM_OP_MUL: begin 
-      //   for (int i = 0; i < N; i++) begin
-      //     rest_result[i] = mult_result[i];
-      //   end
-      //   if (ipm_state_q == FIRST) begin
-      //     for (int i = 0; i < N; i++) begin
-      //       rest_result[i] = 0;
-      //     end
-      //     rest_result[0] = T ^ U;
-      //   end else begin
-      //     rest_result[index_i] = mult_result[index_i] ^ T ^ U;
-      //   end
-      // end
+        //         ibex_pkg::IPM_OP_MUL: begin 
+        //   for (int i = 0; i < N; i++) begin
+        //     rest_result[i] = mult_result[i];
+        //   end
+        //   if (ipm_state_q == FIRST) begin
+        //     for (int i = 0; i < N; i++) begin
+        //       rest_result[i] = 0;
+        //     end
+        //     rest_result[0] = T ^ U;
+        //   end else begin
+        //     rest_result[index_i] = mult_result[index_i] ^ T ^ U;
+        //   end
+        // end
       end
       ibex_pkg::IPM_OP_HOMOG: begin
         rest_result[0] = b[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
@@ -347,13 +347,14 @@ module ipm #(
         COMPUTE: begin
           unique case (operator)
             ibex_pkg::IPM_OP_MUL: begin
-              ipm_state_d = (i_d == $bits(i_d)' (N-1) && j_d == $bits(j_d)' (N-1)) ? LAST : COMPUTE; //require n^2 cycles to complete
+              ipm_state_d = (i_d == $bits(i_d)'(N - 1) && j_d == $bits(j_d)'(N - 1)) ? LAST :
+                  COMPUTE;  //require n^2 cycles to complete
             end
             default: ;
           endcase
         end
         LAST: begin
-           ipm_state_d = FIRST;
+          ipm_state_d = FIRST;
         end
         // DONE: ipm_state_d = FIRST;
         default: ipm_state_d = IDLE;
@@ -361,7 +362,7 @@ module ipm #(
     end
   end
 
-  always_ff @(posedge clk_i or negedge reset_ni) begin: request_signal
+  always_ff @(posedge clk_i or negedge reset_ni) begin : request_signal
     if (!reset_ni) begin
       request_q <= 0;
     end else if (ipm_en) begin
@@ -390,19 +391,19 @@ module ipm #(
     unique case (operator)
       ibex_pkg::IPM_OP_MUL: begin
         // if (ipm_en) begin
-          if (i_d == j_d) begin // next cell is at the diagonal, U_prime is 0, need random data for T
-            request_d = 1;  //need to 'MOVE'
-            U_prime_d = 0;
-          end else begin  //next cell is not at the diagonal
-            if (request_q) begin  // toggle the request
-              request_d = 0;
-              U_prime_d = random[i_d][j_d];
-            end else begin
-              request_d = 1;
-              U_prime_d = U_prime_q;
-            end
+        if (i_d == j_d) begin  // next cell is at the diagonal, U_prime is 0, need random data for T
+          request_d = 1;  //need to 'MOVE'
+          U_prime_d = 0;
+        end else begin  //next cell is not at the diagonal
+          if (request_q) begin  // toggle the request
+            request_d = 0;
+            U_prime_d = random[i_d][j_d];
+          end else begin
+            request_d = 1;
+            U_prime_d = U_prime_q;
           end
         end
+      end
       // end
       default: ;
     endcase
@@ -453,26 +454,32 @@ module ipm #(
     j_d = j_q;
 
     // if (ipm_en) begin
-      if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL
-        if ((ipm_state_q != IDLE && ipm_state_q != LAST) && request_q) begin  //request_q == signal to indicate 'MOVE'
-          if (j_q < $bits(j_q)'(N-1)) begin  //one row is not finished yet
+    if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL
+      //When the current state is FIRST or COMPUTE,
+      //which means IPM_MUL is computing
+      if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
+        //request_q == signal to indicate 'MOVE'
+        if (request_q) begin
+          if (j_q < $bits(j_q)'(N - 1)) begin : move_right
+            //one row is not finished yet
             i_d = i_q;
             j_d = j_q + 1;  //continue to the right cell
-          end else begin  // one row is finished (at the end of one row)
+          end else begin : move_next_row  // one row is finished (at the end of one row)
             i_d = i_q + 1;  // go to next row
             j_d = i_d;  // j starts from the diagonal
           end
-        end else if (ipm_state_q == LAST) begin
-          i_d = 0;
-          j_d = 0;
-        end else begin  //i and j do not change
+        end else begin : stay_index  //i and j do not change
           i_d = i_q;
           j_d = j_q;
         end
-      end else begin
+      end else if (ipm_state_q == LAST) begin : clear_index
         i_d = 0;
         j_d = 0;
       end
+    end else begin : not_mul
+      i_d = 0;
+      j_d = 0;
+    end
     // end
   end
 
@@ -484,10 +491,10 @@ module ipm #(
     for (int i = 0; i < N; i++) begin
       if (operator != ibex_pkg::IPM_OP_MUL) begin
         result_o |= (rest_result[i] << (8 * (N - 1 - i)));
-      end else if (ipm_state_q==LAST) begin
+      end else if (ipm_state_q == LAST) begin
         result_o |= (rest_result[i] << (8 * (N - 1 - i)));
       end else begin
-        result_o |= (mult_result[i] << (8 * (N - 1 - i))); 
+        result_o |= (mult_result[i] << (8 * (N - 1 - i)));
       end
     end
   end
