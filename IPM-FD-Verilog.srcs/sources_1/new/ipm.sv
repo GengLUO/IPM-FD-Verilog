@@ -27,14 +27,14 @@ module ipm #(
 
   // Registers for FSM
   state_e ipm_state_q, ipm_state_d;
-  logic request_q, request_d;
+  logic move_q, move_d;
 
   // Registers for loop indices and intermediate values
   logic [$clog2(N)-1:0] i_q, j_q, i_d, j_d;
 
   logic [$clog2(N)-1:0] index_i, index_j;  //the true index to be performed on the matrix
-  assign index_i = request_q ? i_q : j_q;
-  assign index_j = request_q ? j_q : i_q;
+  assign index_i = move_q ? i_q : j_q; 
+  assign index_j = move_q ? j_q : i_q;
 
   // multipliers
   logic [7:0] multiplier_inputs_a[0:2];
@@ -160,8 +160,7 @@ module ipm #(
     if (ipm_en) begin
       unique case (operator)
         ibex_pkg::IPM_OP_MUL: begin
-          // req = 1;
-          req = request_q;
+          req = 1;
         end
         ibex_pkg::IPM_OP_MASK: begin
           req = (position_q == $bits(position_q)'(0)) ? 1 : 0;
@@ -362,11 +361,11 @@ module ipm #(
     end
   end
 
-  always_ff @(posedge clk_i or negedge reset_ni) begin : request_signal
+  always_ff @(posedge clk_i or negedge reset_ni) begin : move_signal
     if (!reset_ni) begin
-      request_q <= 0;
+      move_q <= 0;
     end else if (ipm_en) begin
-      request_q <= request_d;
+      move_q <= move_d;
     end
   end
 
@@ -379,7 +378,7 @@ module ipm #(
   end
 
   always_comb begin
-    request_d = 1;
+    move_d = 1;
     U_prime_d = 0;
     for (int i = 0; i < 3; i++) begin
       multiplier_inputs_a[i] = 0;
@@ -392,14 +391,14 @@ module ipm #(
       ibex_pkg::IPM_OP_MUL: begin
         // if (ipm_en) begin
         if (i_d == j_d) begin  // next cell is at the diagonal, U_prime is 0, need random data for T
-          request_d = 1;  //need to 'MOVE'
+          move_d = 1;  //need to 'MOVE'
           U_prime_d = 0;
         end else begin  //next cell is not at the diagonal
-          if (request_q) begin  // toggle the request
-            request_d = 0;
+          if (move_q) begin  // toggle the request
+            move_d = 0;
             U_prime_d = random[i_d][j_d];
           end else begin
-            request_d = 1;
+            move_d = 1;
             U_prime_d = U_prime_q;
           end
         end
@@ -458,13 +457,12 @@ module ipm #(
       //When the current state is FIRST or COMPUTE,
       //which means IPM_MUL is computing
       if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
-        //request_q == signal to indicate 'MOVE'
-        if (request_q) begin
+        //move_q == signal to indicate 'MOVE'
+        if (move_q) begin : move_index
           if (j_q < $bits(j_q)'(N - 1)) begin : move_right
-            //one row is not finished yet
             i_d = i_q;
             j_d = j_q + 1;  //continue to the right cell
-          end else begin : move_next_row  // one row is finished (at the end of one row)
+          end else begin : move_next_row
             i_d = i_q + 1;  // go to next row
             j_d = i_d;  // j starts from the diagonal
           end
@@ -472,11 +470,11 @@ module ipm #(
           i_d = i_q;
           j_d = j_q;
         end
-      end else if (ipm_state_q == LAST) begin : clear_index
+      end else if (ipm_state_q == LAST) begin : last_cycle_clear_index
         i_d = 0;
         j_d = 0;
       end
-    end else begin : not_mul
+    end else begin : not_mul_clear_index
       i_d = 0;
       j_d = 0;
     end
