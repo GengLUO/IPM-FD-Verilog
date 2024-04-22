@@ -34,7 +34,7 @@ module ipm #(
   logic [$clog2(N)-1:0] i_q, j_q, i_d, j_d;
 
   logic [$clog2(N)-1:0] index_i, index_j;  //the true index to be performed on the matrix
-  assign index_i = move_q ? i_q : j_q; 
+  assign index_i = move_q ? i_q : j_q;
   assign index_j = move_q ? j_q : i_q;
 
   // multipliers
@@ -42,11 +42,13 @@ module ipm #(
   logic [7:0] multiplier_inputs_b[0:2];
   logic [7:0] multiplier_results [0:2];
 
-  logic       ipm_hold;
+  // logic       ipm_hold;///////////////not used for now
   logic       ipm_en;
   assign ipm_en = ipm_en_i;
 
   logic [7:0] mult_result[0:N-1];
+
+  //unpack the operands
   logic [7:0] a[0:N-1];
   logic [7:0] b[0:N-1];
 
@@ -62,7 +64,7 @@ module ipm #(
   logic [7:0] U;
   logic [7:0] U_prime_q, U_prime_d;
 
-  //TODO: replace hardcoded random to PRNG
+  // hardcoded random
   // logic [7:0] random[4][4];
   // initial begin
   //   random[0][0] = 8'd43;
@@ -141,8 +143,8 @@ module ipm #(
   logic mul_req_random;
   logic mask_req_random;
 
-  logic [7:0] random [0:2];
-    always_comb begin
+  logic [7:0] random[0:2];
+  always_comb begin
     for (int i = 0; i < 3; i++) begin
       random[3-1-i] = prng[8*i+:8];
     end
@@ -174,7 +176,7 @@ module ipm #(
           req = mul_req_random;
         end
         ibex_pkg::IPM_OP_MASK: begin
-          req = (position_q == $bits(position_q)'(k-1)) ? 1 : 0;
+          req = (position_q == $bits(position_q)'(k - 1)) ? 1 : 0;
         end
         default: ;
       endcase
@@ -346,7 +348,7 @@ module ipm #(
         FIRST: begin
           unique case (operator)
             ibex_pkg::IPM_OP_MUL: begin
-              ipm_state_d = (i_d == 0 && j_d == 0) ? FIRST : COMPUTE;
+              ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
             end
             ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_UNMASK: begin
               ipm_state_d = FIRST;  //require 0 cycle, can already get the result
