@@ -1,7 +1,6 @@
 module ipm #(
-    parameter  bit [2:0] n = 4,
-    parameter  bit [1:0] k = 1,
-    localparam bit [2:0] N = n - k + 1
+    parameter n = 4,
+    parameter k = 1
 ) (
     input logic clk_i,
     input logic reset_ni,
@@ -15,6 +14,8 @@ module ipm #(
     output logic [31:0] result_o,
     output logic valid_o
 );
+
+  localparam N = n - k + 1;
 
   // State definitions
   typedef enum logic [2:0] {
