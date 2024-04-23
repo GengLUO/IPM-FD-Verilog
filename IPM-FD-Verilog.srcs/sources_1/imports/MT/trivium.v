@@ -10,7 +10,11 @@ module trivium #(
     output  wire [OUTPUT_BITS-1:0]  stream_o
   );
   
+/* verilator lint_off UNOPTFLAT */
+/* verilator lint_off IMPERFECTSCH */
   reg [287:0] state [0:OUTPUT_BITS];
+  /* verilator lint_on UNOPTFLAT*/
+/* verilator lint_on IMPERFECTSCH */
   
   reg [OUTPUT_BITS-1:0]  t1, t2, t3;
   

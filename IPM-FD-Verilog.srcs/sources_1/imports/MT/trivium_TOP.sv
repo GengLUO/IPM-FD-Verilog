@@ -44,7 +44,7 @@ module trivium_top #(
   trivium_state_e rFSM_Current, wFSM_Next; 
   
   // Register updates
-  always_ff @(posedge clk_i)
+  always_ff @(posedge clk_i or negedge reset_ni)
   begin
     if (!reset_ni)
       begin

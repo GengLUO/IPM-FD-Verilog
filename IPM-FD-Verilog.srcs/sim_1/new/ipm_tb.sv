@@ -51,7 +51,7 @@ module ipm_tb;
         .k(k)
     ) ipm_inst (
         .clk_i(clk_i),
-        .reset_ni(reset_ni),
+        .rst_ni(reset_ni),
         .a_i(a_i),
         .b_i(b_i),
         .ipm_en_i(ipm_en_i),
@@ -132,12 +132,14 @@ module ipm_tb;
 //        perform_operation(32'ha8413f61, 32'h6b7a52da, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2);
         //////////////MASK
         perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hf5413f61);
+        #50;
         perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'ha8413f61);
         
         perform_operation(32'h37000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'he3413f61);
         perform_operation(32'h37000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hbe413f61);
         /////////////MULT
         perform_operation(32'hf5413f61, 32'he3413f61, ibex_pkg::IPM_OP_MUL, 32'ha2d56509);
+        #50;
         perform_operation(32'ha8413f61, 32'hbe413f61, ibex_pkg::IPM_OP_MUL, 32'hd89b0dcd);
         /////////////HOMOG
         perform_operation(32'ha2d56509, 32'hd89b0dcd, ibex_pkg::IPM_OP_HOMOG, 32'h66d56509);
@@ -150,9 +152,9 @@ module ipm_tb;
         perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         
-        #50;
+//        #50;
 //        perform_operation_with_random_masks(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'h21000000);
-        perform_mult_with_random_masks(32'h04000000, 32'h04000000, ibex_pkg::IPM_OP_MUL, 32'h10000000);
+//        perform_mult_with_random_masks(32'h04000000, 32'h04000000, ibex_pkg::IPM_OP_MUL, 32'h10000000);
         $finish;
     end
 

@@ -23,7 +23,7 @@ module Lbox #(
     parameter n = 4,
     parameter k = 1
 ) (
-    input logic [$clog2(k)-1:0] position,
+    input logic [$clog2(k):0] position,
     output logic [7:0] L_prime[0:N-1]
 );
 
@@ -32,7 +32,8 @@ module Lbox #(
   // initial begin
   //   $display("bits = %d, %d, %d", $bits(n), $bits(k), $bits(N));
   // end
-  logic [7:0] L[0:k-1][0:N-1];
+  // logic [7:0] L[0:k-1][0:N-1];
+  logic [7:0] L[0:k][0:N];
   // logic [7:0] L_inv[0:k-1][0:N-1];
 
   always_comb begin
