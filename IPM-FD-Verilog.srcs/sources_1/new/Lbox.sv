@@ -29,10 +29,11 @@ module Lbox #(
 
   localparam N = n - k + 1;
 
-  initial begin
-    $display("bits = %d, %d, %d", $bits(n), $bits(k), $bits(N));
-  end
+  // initial begin
+  //   $display("bits = %d, %d, %d", $bits(n), $bits(k), $bits(N));
+  // end
   logic [7:0] L[0:k-1][0:N-1];
+  // logic [7:0] L_inv[0:k-1][0:N-1];
 
   always_comb begin
     case ({

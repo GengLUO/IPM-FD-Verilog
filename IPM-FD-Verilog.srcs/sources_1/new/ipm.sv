@@ -1,6 +1,6 @@
 module ipm #(
-    parameter n = 4,
-    parameter k = 1
+    parameter n = 5,
+    parameter k = 2
 ) (
     input logic clk_i,
     input logic reset_ni,
@@ -99,11 +99,15 @@ module ipm #(
   //   random[3][3] = 8'd59;
   // end
 
+  ///////////
+  // SQ box//
+  ///////////
   logic [7:0] sq_res_block[0:3];
   sq sq_inst (
       .sq_i(a_i),
       .sq_o(sq_res_block)
   );
+
   ///////////
   // L box //
   ///////////
@@ -473,16 +477,21 @@ module ipm #(
   // assign valid_o = ipm_state_q == DONE || ipm_state_q == LAST || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
   assign valid_o = ipm_state_q == LAST || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
 
+  // always_comb begin
+  //   result_o = {8 * N{1'b0}};
+  //   for (int i = 0; i < N; i++) begin
+  //     if (operator != ibex_pkg::IPM_OP_MUL) begin
+  //       result_o |= (rest_result[i] << $bits(rest_result[i])'((8 * (N - 1 - i))));
+  //     end else if (ipm_state_q == LAST) begin
+  //       result_o |= (rest_result[i] << $bits(rest_result[i])'((8 * (N - 1 - i))));
+  //     end else begin
+  //       result_o |= (mult_result[i] << $bits(rest_result[i])'((8 * (N - 1 - i))));
+  //     end
+  //   end
+  // end
   always_comb begin
-    result_o = {8 * N{1'b0}};
     for (int i = 0; i < N; i++) begin
-      if (operator != ibex_pkg::IPM_OP_MUL) begin
-        result_o |= (rest_result[i] << (8 * (N - 1 - i)));
-      end else if (ipm_state_q == LAST) begin
-        result_o |= (rest_result[i] << (8 * (N - 1 - i)));
-      end else begin
-        result_o |= (mult_result[i] << (8 * (N - 1 - i)));
-      end
+      result_o[8*i+:8] = rest_result[N-1-i];
     end
   end
 
