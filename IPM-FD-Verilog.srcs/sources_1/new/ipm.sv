@@ -88,28 +88,28 @@ module ipm #(
   logic [7:0] U_prime_q, U_prime_d;
 
   // hardcoded random
-  // logic [7:0] random[4][4];
-  // initial begin
-  //   random[0][0] = 8'd43;
-  //   random[0][1] = 8'd65;
-  //   random[0][2] = 8'd63;
-  //   random[0][3] = 8'd97;
+  logic [7:0] random[4][4];
+  initial begin
+    random[0][0] = 8'd43;
+    random[0][1] = 8'd65;
+    random[0][2] = 8'd63;
+    random[0][3] = 8'd97;
 
-  //   random[1][0] = 8'd123;
-  //   random[1][1] = 8'd1;
-  //   random[1][2] = 8'd239;
-  //   random[1][3] = 8'd54;
+    random[1][0] = 8'd123;
+    random[1][1] = 8'd1;
+    random[1][2] = 8'd239;
+    random[1][3] = 8'd54;
 
-  //   random[2][0] = 8'd78;
-  //   random[2][1] = 8'd76;
-  //   random[2][2] = 8'd127;
-  //   random[2][3] = 8'd179;
+    random[2][0] = 8'd78;
+    random[2][1] = 8'd76;
+    random[2][2] = 8'd127;
+    random[2][3] = 8'd179;
 
-  //   random[3][0] = 8'd222;
-  //   random[3][1] = 8'd48;
-  //   random[3][2] = 8'd74;
-  //   random[3][3] = 8'd59;
-  // end
+    random[3][0] = 8'd222;
+    random[3][1] = 8'd48;
+    random[3][2] = 8'd74;
+    random[3][3] = 8'd59;
+  end
 
   ///////////
   // SQ box//
@@ -174,12 +174,12 @@ module ipm #(
   logic mul_req_random;
   // logic mask_req_random;
 
-  logic [7:0] random[0:2];
-  always_comb begin
-    for (int i = 0; i < 3; i++) begin
-      random[3-1-i] = prng[8*i+:8];
-    end
-  end
+  // logic [7:0] random[0:2];
+  // always_comb begin
+  //   for (int i = 0; i < 3; i++) begin
+  //     random[3-1-i] = prng[8*i+:8];
+  //   end
+  // end
 
   // Trivium instance 
   trivium_top #(
@@ -571,8 +571,8 @@ module ipm #(
       ibex_pkg::IPM_OP_MASK: begin
         rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
         for (int i = 1; i < n; i++) begin
-          rest_result[i] = random[i-1];
-          // rest_result[i] = random[0][i];
+          // rest_result[i] = random[i-1];
+          rest_result[i] = random[0][i];
         end
       end
       ibex_pkg::IPM_OP_UNMASK: begin
@@ -655,8 +655,8 @@ module ipm #(
         end else begin  //next cell is not at the diagonal
           if (move_q) begin  // toggle the request
             move_d = 0;
-            U_prime_d = random[0];
-            // U_prime_d = random[i_d][j_d];
+            // U_prime_d = random[0];
+            U_prime_d = random[i_d][j_d];
             mul_req_random = 1;
           end else begin
             move_d = 1;
@@ -684,8 +684,8 @@ module ipm #(
       end
       ibex_pkg::IPM_OP_MASK: begin
         for (int i = 0; i < 3; i++) begin
-          multiplier_inputs_a[i] = random[i];
-          // multiplier_inputs_a[i] = random[0][i+1];
+          // multiplier_inputs_a[i] = random[i];
+          multiplier_inputs_a[i] = random[0][i+1];
           multiplier_inputs_b[i] = L_prime[i+1];
         end
       end
