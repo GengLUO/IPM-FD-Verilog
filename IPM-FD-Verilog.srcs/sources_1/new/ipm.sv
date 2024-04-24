@@ -129,12 +129,14 @@ module ipm #(
   logic [$clog2(k):0] position_Lbox, position_q, position_d;
 
   logic [7:0] L_prime[0:N-1];
+  logic [7:0] L_prime_inv[0:N-1];
   Lbox #(
       .n(n),
       .k(k)
   ) Lbox_inst (
       .position(position_Lbox),
-      .L_prime (L_prime)
+      .L_prime(L_prime),
+      .L_prime_inv(L_prime_inv)
   );
 
   //homiginization operation start from the second row
@@ -174,7 +176,51 @@ module ipm #(
   // logic ready;
 
   logic mul_req_random;
-  // logic mask_req_random;
+  logic mask_req_random;
+  logic req_random_mux;
+
+  always_comb begin
+    mul_req_random = 0;
+
+    if (operator == ibex_pkg::IPM_OP_MUL) begin
+      if (index_i < index_j) begin
+        mul_req_random = 1;
+      end
+    end
+  end
+
+  always_comb begin
+    mask_req_random = 0;
+
+    if (operator == ibex_pkg::IPM_OP_MASK) begin
+      if (position_q == $bits(position_q)'(0) && ipm_state_q != LAST) begin
+        // when computing on the first row, need to require random
+        // but not the LAST
+        mask_req_random = 1;
+      end else if (position_q == $bits(position_q)'(k - 1)) begin
+        // after computing all repetitions, require random for the following operation
+        mask_req_random = 1;
+      end else begin
+        mask_req_random = 0;
+      end
+    end
+  end
+
+  always_comb begin
+    req_random_mux = 0;
+    
+    if (ipm_sel) begin
+      unique case (operator)
+        ibex_pkg::IPM_OP_MUL: begin
+          req_random_mux = mul_req_random;
+        end
+        ibex_pkg::IPM_OP_MASK: begin
+          req_random_mux = mask_req_random;
+        end
+        default: ;
+      endcase
+    end
+  end
 
   logic [7:0] random_mask_temp_q[0:1];
   logic [7:0] random_mask_temp_d[0:1];
@@ -231,316 +277,10 @@ module ipm #(
   );
 
   always_comb begin : trivium_req_ctrl
-    req  = 0;
+    req  = req_random_mux;
     refr = 0;
     key  = 80'h00112233445566778899;
-
-    if (ipm_sel) begin
-      unique case (operator)
-        ibex_pkg::IPM_OP_MUL: begin
-          req = mul_req_random;
-        end
-        ibex_pkg::IPM_OP_MASK: begin
-          if (position_q == $bits(position_q)'(0) && ipm_state_q != LAST) begin
-            // when computing on the first row, need to require random
-            // but not the LAST
-            req = 1;
-          end else if (position_q == $bits(position_q)'(k - 1)) begin
-            // after computing all repetitions, require random for the following operation
-            req = 1;
-          end else begin
-            req = 0;
-          end
-          // req = (position_q == $bits(position_q)'(k - 1) && ipm_state_q == LAST) ? 1 : 0; // request refresh random when computing at the last time
-        end
-        default: ;
-      endcase
-    end
   end
-
-  //TODO: store inverse of L in L box
-  logic [7:0] gf_inv[0:255];
-  assign gf_inv[0]   = 8'h00;
-  assign gf_inv[1]   = 8'h01;
-  assign gf_inv[2]   = 8'h8d;
-  assign gf_inv[3]   = 8'hf6;
-  assign gf_inv[4]   = 8'hcb;
-  assign gf_inv[5]   = 8'h52;
-  assign gf_inv[6]   = 8'h7b;
-  assign gf_inv[7]   = 8'hd1;
-  assign gf_inv[8]   = 8'he8;
-  assign gf_inv[9]   = 8'h4f;
-
-  assign gf_inv[10]  = 8'h29;
-  assign gf_inv[11]  = 8'hc0;
-  assign gf_inv[12]  = 8'hb0;
-  assign gf_inv[13]  = 8'he1;
-  assign gf_inv[14]  = 8'he5;
-  assign gf_inv[15]  = 8'hc7;
-  assign gf_inv[16]  = 8'h74;
-  assign gf_inv[17]  = 8'hb4;
-  assign gf_inv[18]  = 8'haa;
-  assign gf_inv[19]  = 8'h4b;
-
-  assign gf_inv[20]  = 8'h99;
-  assign gf_inv[21]  = 8'h2b;
-  assign gf_inv[22]  = 8'h60;
-  assign gf_inv[23]  = 8'h5f;
-  assign gf_inv[24]  = 8'h58;
-  assign gf_inv[25]  = 8'h3f;
-  assign gf_inv[26]  = 8'hfd;
-  assign gf_inv[27]  = 8'hcc;
-  assign gf_inv[28]  = 8'hff;
-  assign gf_inv[29]  = 8'h40;
-
-  assign gf_inv[30]  = 8'hee;
-  assign gf_inv[31]  = 8'hb2;
-  assign gf_inv[32]  = 8'h3a;
-  assign gf_inv[33]  = 8'h6e;
-  assign gf_inv[34]  = 8'h5a;
-  assign gf_inv[35]  = 8'hf1;
-  assign gf_inv[36]  = 8'h55;
-  assign gf_inv[37]  = 8'h4d;
-  assign gf_inv[38]  = 8'ha8;
-  assign gf_inv[39]  = 8'hc9;
-
-  assign gf_inv[40]  = 8'hc1;
-  assign gf_inv[41]  = 8'h0a;
-  assign gf_inv[42]  = 8'h98;
-  assign gf_inv[43]  = 8'h15;
-  assign gf_inv[44]  = 8'h30;
-  assign gf_inv[45]  = 8'h44;
-  assign gf_inv[46]  = 8'ha2;
-  assign gf_inv[47]  = 8'hc2;
-  assign gf_inv[48]  = 8'h2c;
-  assign gf_inv[49]  = 8'h45;
-
-  assign gf_inv[50]  = 8'h92;
-  assign gf_inv[51]  = 8'h6c;
-  assign gf_inv[52]  = 8'hf3;
-  assign gf_inv[53]  = 8'h39;
-  assign gf_inv[54]  = 8'h66;
-  assign gf_inv[55]  = 8'h42;
-  assign gf_inv[56]  = 8'hf2;
-  assign gf_inv[57]  = 8'h35;
-  assign gf_inv[58]  = 8'h20;
-  assign gf_inv[59]  = 8'h6f;
-
-  assign gf_inv[60]  = 8'h77;
-  assign gf_inv[61]  = 8'hbb;
-  assign gf_inv[62]  = 8'h59;
-  assign gf_inv[63]  = 8'h19;
-  assign gf_inv[64]  = 8'h1d;
-  assign gf_inv[65]  = 8'hfe;
-  assign gf_inv[66]  = 8'h37;
-  assign gf_inv[67]  = 8'h67;
-  assign gf_inv[68]  = 8'h2d;
-  assign gf_inv[69]  = 8'h31;
-
-  assign gf_inv[70]  = 8'hf5;
-  assign gf_inv[71]  = 8'h69;
-  assign gf_inv[72]  = 8'ha7;
-  assign gf_inv[73]  = 8'h64;
-  assign gf_inv[74]  = 8'hab;
-  assign gf_inv[75]  = 8'h13;
-  assign gf_inv[76]  = 8'h54;
-  assign gf_inv[77]  = 8'h25;
-  assign gf_inv[78]  = 8'he9;
-  assign gf_inv[79]  = 8'h09;
-
-  assign gf_inv[80]  = 8'hed;
-  assign gf_inv[81]  = 8'h5c;
-  assign gf_inv[82]  = 8'h05;
-  assign gf_inv[83]  = 8'hca;
-  assign gf_inv[84]  = 8'h4c;
-  assign gf_inv[85]  = 8'h24;
-  assign gf_inv[86]  = 8'h87;
-  assign gf_inv[87]  = 8'hbf;
-  assign gf_inv[88]  = 8'h18;
-  assign gf_inv[89]  = 8'h3e;
-
-  assign gf_inv[90]  = 8'h22;
-  assign gf_inv[91]  = 8'hf0;
-  assign gf_inv[92]  = 8'h51;
-  assign gf_inv[93]  = 8'hec;
-  assign gf_inv[94]  = 8'h61;
-  assign gf_inv[95]  = 8'h17;
-  assign gf_inv[96]  = 8'h16;
-  assign gf_inv[97]  = 8'h5e;
-  assign gf_inv[98]  = 8'haf;
-  assign gf_inv[99]  = 8'hd3;
-
-  assign gf_inv[100] = 8'h49;
-  assign gf_inv[101] = 8'ha6;
-  assign gf_inv[102] = 8'h36;
-  assign gf_inv[103] = 8'h43;
-  assign gf_inv[104] = 8'hf4;
-  assign gf_inv[105] = 8'h47;
-  assign gf_inv[106] = 8'h91;
-  assign gf_inv[107] = 8'hdf;
-  assign gf_inv[108] = 8'h33;
-  assign gf_inv[109] = 8'h93;
-
-  assign gf_inv[110] = 8'h21;
-  assign gf_inv[111] = 8'h3b;
-  assign gf_inv[112] = 8'h79;
-  assign gf_inv[113] = 8'hb7;
-  assign gf_inv[114] = 8'h97;
-  assign gf_inv[115] = 8'h85;
-  assign gf_inv[116] = 8'h10;
-  assign gf_inv[117] = 8'hb5;
-  assign gf_inv[118] = 8'hba;
-  assign gf_inv[119] = 8'h3c;
-
-  assign gf_inv[120] = 8'hb6;
-  assign gf_inv[121] = 8'h70;
-  assign gf_inv[122] = 8'hd0;
-  assign gf_inv[123] = 8'h06;
-  assign gf_inv[124] = 8'ha1;
-  assign gf_inv[125] = 8'hfa;
-  assign gf_inv[126] = 8'h81;
-  assign gf_inv[127] = 8'h82;
-  assign gf_inv[128] = 8'h83;
-  assign gf_inv[129] = 8'h7e;
-
-  assign gf_inv[130] = 8'h7f;
-  assign gf_inv[131] = 8'h80;
-  assign gf_inv[132] = 8'h96;
-  assign gf_inv[133] = 8'h73;
-  assign gf_inv[134] = 8'hbe;
-  assign gf_inv[135] = 8'h56;
-  assign gf_inv[136] = 8'h9b;
-  assign gf_inv[137] = 8'h9e;
-  assign gf_inv[138] = 8'h95;
-  assign gf_inv[139] = 8'hd9;
-
-  assign gf_inv[140] = 8'hf7;
-  assign gf_inv[141] = 8'h02;
-  assign gf_inv[142] = 8'hb9;
-  assign gf_inv[143] = 8'ha4;
-  assign gf_inv[144] = 8'hde;
-  assign gf_inv[145] = 8'h6a;
-  assign gf_inv[146] = 8'h32;
-  assign gf_inv[147] = 8'h6d;
-  assign gf_inv[148] = 8'hd8;
-  assign gf_inv[149] = 8'h8a;
-
-  assign gf_inv[150] = 8'h84;
-  assign gf_inv[151] = 8'h72;
-  assign gf_inv[152] = 8'h2a;
-  assign gf_inv[153] = 8'h14;
-  assign gf_inv[154] = 8'h9f;
-  assign gf_inv[155] = 8'h88;
-  assign gf_inv[156] = 8'hf9;
-  assign gf_inv[157] = 8'hdc;
-  assign gf_inv[158] = 8'h89;
-  assign gf_inv[159] = 8'h9a;
-
-  assign gf_inv[160] = 8'hfb;
-  assign gf_inv[161] = 8'h7c;
-  assign gf_inv[162] = 8'h2e;
-  assign gf_inv[163] = 8'hc3;
-  assign gf_inv[164] = 8'h8f;
-  assign gf_inv[165] = 8'hb8;
-  assign gf_inv[166] = 8'h65;
-  assign gf_inv[167] = 8'h48;
-  assign gf_inv[168] = 8'h26;
-  assign gf_inv[169] = 8'hc8;
-
-  assign gf_inv[170] = 8'h12;
-  assign gf_inv[171] = 8'h4a;
-  assign gf_inv[172] = 8'hce;
-  assign gf_inv[173] = 8'he7;
-  assign gf_inv[174] = 8'hd2;
-  assign gf_inv[175] = 8'h62;
-  assign gf_inv[176] = 8'h0c;
-  assign gf_inv[177] = 8'he0;
-  assign gf_inv[178] = 8'h1f;
-  assign gf_inv[179] = 8'hef;
-
-  assign gf_inv[180] = 8'h11;
-  assign gf_inv[181] = 8'h75;
-  assign gf_inv[182] = 8'h78;
-  assign gf_inv[183] = 8'h71;
-  assign gf_inv[184] = 8'ha5;
-  assign gf_inv[185] = 8'h8e;
-  assign gf_inv[186] = 8'h76;
-  assign gf_inv[187] = 8'h3d;
-  assign gf_inv[188] = 8'hbd;
-  assign gf_inv[189] = 8'hbc;
-
-  assign gf_inv[190] = 8'h86;
-  assign gf_inv[191] = 8'h57;
-  assign gf_inv[192] = 8'h0b;
-  assign gf_inv[193] = 8'h28;
-  assign gf_inv[194] = 8'h2f;
-  assign gf_inv[195] = 8'ha3;
-  assign gf_inv[196] = 8'hda;
-  assign gf_inv[197] = 8'hd4;
-  assign gf_inv[198] = 8'he4;
-  assign gf_inv[199] = 8'h0f;
-
-  assign gf_inv[200] = 8'ha9;
-  assign gf_inv[201] = 8'h27;
-  assign gf_inv[202] = 8'h53;
-  assign gf_inv[203] = 8'h04;
-  assign gf_inv[204] = 8'h1b;
-  assign gf_inv[205] = 8'hfc;
-  assign gf_inv[206] = 8'hac;
-  assign gf_inv[207] = 8'he6;
-  assign gf_inv[208] = 8'h7a;
-  assign gf_inv[209] = 8'h07;
-
-  assign gf_inv[210] = 8'hae;
-  assign gf_inv[211] = 8'h63;
-  assign gf_inv[212] = 8'hc5;
-  assign gf_inv[213] = 8'hdb;
-  assign gf_inv[214] = 8'he2;
-  assign gf_inv[215] = 8'hea;
-  assign gf_inv[216] = 8'h94;
-  assign gf_inv[217] = 8'h8b;
-  assign gf_inv[218] = 8'hc4;
-  assign gf_inv[219] = 8'hd5;
-
-  assign gf_inv[220] = 8'h9d;
-  assign gf_inv[221] = 8'hf8;
-  assign gf_inv[222] = 8'h90;
-  assign gf_inv[223] = 8'h6b;
-  assign gf_inv[224] = 8'hb1;
-  assign gf_inv[225] = 8'h0d;
-  assign gf_inv[226] = 8'hd6;
-  assign gf_inv[227] = 8'heb;
-  assign gf_inv[228] = 8'hc6;
-  assign gf_inv[229] = 8'h0e;
-
-  assign gf_inv[230] = 8'hcf;
-  assign gf_inv[231] = 8'had;
-  assign gf_inv[232] = 8'h08;
-  assign gf_inv[233] = 8'h4e;
-  assign gf_inv[234] = 8'hd7;
-  assign gf_inv[235] = 8'he3;
-  assign gf_inv[236] = 8'h5d;
-  assign gf_inv[237] = 8'h50;
-  assign gf_inv[238] = 8'h1e;
-  assign gf_inv[239] = 8'hb3;
-
-  assign gf_inv[240] = 8'h5b;
-  assign gf_inv[241] = 8'h23;
-  assign gf_inv[242] = 8'h38;
-  assign gf_inv[243] = 8'h34;
-  assign gf_inv[244] = 8'h68;
-  assign gf_inv[245] = 8'h46;
-  assign gf_inv[246] = 8'h03;
-  assign gf_inv[247] = 8'h8c;
-  assign gf_inv[248] = 8'hdd;
-  assign gf_inv[249] = 8'h9c;
-
-  assign gf_inv[250] = 8'h7d;
-  assign gf_inv[251] = 8'ha0;
-  assign gf_inv[252] = 8'hcd;
-  assign gf_inv[253] = 8'h1a;
-  assign gf_inv[254] = 8'h41;
-  assign gf_inv[255] = 8'h1c;
 
   // Instantiation of GF(256) multipliers
   gfmul gfmul_inst_0 (
@@ -700,16 +440,6 @@ module ipm #(
   end
 
   always_comb begin
-    mul_req_random = 0;
-
-    if (operator == ibex_pkg::IPM_OP_MUL) begin
-      if (index_i < index_j) begin
-        mul_req_random = 1;
-      end
-    end
-  end
-
-  always_comb begin
     U_prime = (i_q == j_q) ? 0 : random_mask_curr;
   end
 
@@ -731,7 +461,7 @@ module ipm #(
         T = multiplier_results[1];
 
         multiplier_inputs_a[2] = U_prime;
-        multiplier_inputs_b[2] = gf_inv[L_prime[index_i]];
+        multiplier_inputs_b[2] = L_prime_inv[index_i];
         U = multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MASK: begin
@@ -813,7 +543,7 @@ module ipm #(
   //////////////////
   // output logic //
   //////////////////
-  
+
   always_comb begin
     valid_o = 0;
     unique case (operator)
