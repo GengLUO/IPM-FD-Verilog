@@ -69,11 +69,11 @@ module ipm #(
   assign index_j = move_q ? j_q : i_q;
 
   // multipliers
-/* verilator lint_off UNOPTFLAT */
-/* verilator lint_off IMPERFECTSCH */
+  /* verilator lint_off UNOPTFLAT */
+  /* verilator lint_off IMPERFECTSCH */
   logic [7:0] multiplier_inputs_a[0:2];
-/* verilator lint_on UNOPTFLAT*/
-/* verilator lint_on IMPERFECTSCH */
+  /* verilator lint_on UNOPTFLAT*/
+  /* verilator lint_on IMPERFECTSCH */
   logic [7:0] multiplier_inputs_b[0:2];
   logic [7:0] multiplier_results[0:2];
 
@@ -87,29 +87,31 @@ module ipm #(
   logic [7:0] U;
   logic [7:0] U_prime_q, U_prime_d;
 
-  // hardcoded random
-  logic [7:0] random[4][4];
-  initial begin
-    random[0][0] = 8'd43;
-    random[0][1] = 8'd65;
-    random[0][2] = 8'd63;
-    random[0][3] = 8'd97;
+  //////////////////////
+  // hardcoded random //
+  //////////////////////
+  // logic [7:0] random[4][4];
+  // initial begin
+  //   random[0][0] = 8'd43;
+  //   random[0][1] = 8'd65;
+  //   random[0][2] = 8'd63;
+  //   random[0][3] = 8'd97;
 
-    random[1][0] = 8'd123;
-    random[1][1] = 8'd1;
-    random[1][2] = 8'd239;
-    random[1][3] = 8'd54;
+  //   random[1][0] = 8'd123;
+  //   random[1][1] = 8'd1;
+  //   random[1][2] = 8'd239;
+  //   random[1][3] = 8'd54;
 
-    random[2][0] = 8'd78;
-    random[2][1] = 8'd76;
-    random[2][2] = 8'd127;
-    random[2][3] = 8'd179;
+  //   random[2][0] = 8'd78;
+  //   random[2][1] = 8'd76;
+  //   random[2][2] = 8'd127;
+  //   random[2][3] = 8'd179;
 
-    random[3][0] = 8'd222;
-    random[3][1] = 8'd48;
-    random[3][2] = 8'd74;
-    random[3][3] = 8'd59;
-  end
+  //   random[3][0] = 8'd222;
+  //   random[3][1] = 8'd48;
+  //   random[3][2] = 8'd74;
+  //   random[3][3] = 8'd59;
+  // end
 
   ///////////
   // SQ box//
@@ -167,24 +169,56 @@ module ipm #(
   logic req;
   logic refr;
   logic [79:0] key;
-  logic [24-1:0] prng;
+  logic [7:0] prng;
   // logic busy;
   // logic ready;
 
   logic mul_req_random;
   // logic mask_req_random;
 
+  logic [7:0] random_mask_temp_q[0:1];
+  logic [7:0] random_mask_temp_d[0:1];
+  logic [7:0] random_mask_curr;
   // logic [7:0] random[0:2];
   // always_comb begin
   //   for (int i = 0; i < 3; i++) begin
   //     random[3-1-i] = prng[8*i+:8];
   //   end
   // end
+  assign random_mask_curr = prng;
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      for (int i = 0; i < 2; i++) begin
+        random_mask_temp_q[i] <= 0;
+      end
+    end else if (ipm_en) begin
+      for (int i = 0; i < 2; i++) begin
+        random_mask_temp_q[i] <= random_mask_temp_d[i];
+      end
+    end
+  end
+
+  always_comb begin
+    for (int i = 0; i < 2; i++) begin
+      random_mask_temp_d[i] = random_mask_temp_q[i];
+    end
+    unique case (operator)
+      ibex_pkg::IPM_OP_MASK: begin
+        if (position_q == $bits(
+                position_q
+            )'(0)) begin  //only update the random number registers when compuiting on the first row
+          random_mask_temp_d[j_q] = random_mask_curr;
+        end
+      end
+      default: ;
+    endcase
+  end
 
   // Trivium instance 
   trivium_top #(
-      .WORDSIZE(24),
-      .OUTPUT_BITS(24)
+      .WORDSIZE(8),
+      .OUTPUT_BITS(8)
   ) trivium (
       .clk_i(clk_i),
       .reset_ni(rst_ni),
@@ -207,7 +241,17 @@ module ipm #(
           req = mul_req_random;
         end
         ibex_pkg::IPM_OP_MASK: begin
-          req = (position_q == $bits(position_q)'(k - 1)) ? 1 : 0;
+          if (position_q == $bits(position_q)'(0) && ipm_state_q != LAST) begin
+            // when computing on the first row, need to require random
+            // but not the LAST
+            req = 1;
+          end else if (position_q == $bits(position_q)'(k - 1)) begin
+            // after computing all repetitions, require random for the following operation
+            req = 1;
+          end else begin
+            req = 0;
+          end
+          // req = (position_q == $bits(position_q)'(k - 1) && ipm_state_q == LAST) ? 1 : 0; // request refresh random when computing at the last time
         end
         default: ;
       endcase
@@ -215,7 +259,7 @@ module ipm #(
   end
 
   //TODO: store inverse of L in L box
-  logic [7:0] gf_inv [0:255];
+  logic [7:0] gf_inv[0:255];
   assign gf_inv[0]   = 8'h00;
   assign gf_inv[1]   = 8'h01;
   assign gf_inv[2]   = 8'h8d;
@@ -276,7 +320,7 @@ module ipm #(
   assign gf_inv[52]  = 8'hf3;
   assign gf_inv[53]  = 8'h39;
   assign gf_inv[54]  = 8'h66;
-  assign gf_inv[55]  = 8'h42;	
+  assign gf_inv[55]  = 8'h42;
   assign gf_inv[56]  = 8'hf2;
   assign gf_inv[57]  = 8'h35;
   assign gf_inv[58]  = 8'h20;
@@ -347,7 +391,7 @@ module ipm #(
   assign gf_inv[117] = 8'hb5;
   assign gf_inv[118] = 8'hba;
   assign gf_inv[119] = 8'h3c;
-  
+
   assign gf_inv[120] = 8'hb6;
   assign gf_inv[121] = 8'h70;
   assign gf_inv[122] = 8'hd0;
@@ -358,7 +402,7 @@ module ipm #(
   assign gf_inv[127] = 8'h82;
   assign gf_inv[128] = 8'h83;
   assign gf_inv[129] = 8'h7e;
-  
+
   assign gf_inv[130] = 8'h7f;
   assign gf_inv[131] = 8'h80;
   assign gf_inv[132] = 8'h96;
@@ -369,7 +413,7 @@ module ipm #(
   assign gf_inv[137] = 8'h9e;
   assign gf_inv[138] = 8'h95;
   assign gf_inv[139] = 8'hd9;
-  
+
   assign gf_inv[140] = 8'hf7;
   assign gf_inv[141] = 8'h02;
   assign gf_inv[142] = 8'hb9;
@@ -380,7 +424,7 @@ module ipm #(
   assign gf_inv[147] = 8'h6d;
   assign gf_inv[148] = 8'hd8;
   assign gf_inv[149] = 8'h8a;
-  
+
   assign gf_inv[150] = 8'h84;
   assign gf_inv[151] = 8'h72;
   assign gf_inv[152] = 8'h2a;
@@ -391,7 +435,7 @@ module ipm #(
   assign gf_inv[157] = 8'hdc;
   assign gf_inv[158] = 8'h89;
   assign gf_inv[159] = 8'h9a;
-  
+
   assign gf_inv[160] = 8'hfb;
   assign gf_inv[161] = 8'h7c;
   assign gf_inv[162] = 8'h2e;
@@ -498,22 +542,22 @@ module ipm #(
   assign gf_inv[254] = 8'h41;
   assign gf_inv[255] = 8'h1c;
 
-// Instantiation of GF(256) multipliers
-        gfmul gfmul_inst_0 (
-            .rs1(multiplier_inputs_a[0]),
-            .rs2(multiplier_inputs_b[0]),
-            .rd(multiplier_results[0])
-        );
-        gfmul gfmul_inst_1 (
-            .rs1(multiplier_inputs_a[1]),
-            .rs2(multiplier_inputs_b[1]),
-            .rd(multiplier_results[1])
-        );
-        gfmul gfmul_inst_2 (
-            .rs1(multiplier_inputs_a[2]),
-            .rs2(multiplier_inputs_b[2]),
-            .rd(multiplier_results[2])
-        );
+  // Instantiation of GF(256) multipliers
+  gfmul gfmul_inst_0 (
+      .rs1(multiplier_inputs_a[0]),
+      .rs2(multiplier_inputs_b[0]),
+      .rd (multiplier_results[0])
+  );
+  gfmul gfmul_inst_1 (
+      .rs1(multiplier_inputs_a[1]),
+      .rs2(multiplier_inputs_b[1]),
+      .rd (multiplier_results[1])
+  );
+  gfmul gfmul_inst_2 (
+      .rs1(multiplier_inputs_a[2]),
+      .rs2(multiplier_inputs_b[2]),
+      .rd (multiplier_results[2])
+  );
 
   // State transition and output logic
   always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -570,9 +614,10 @@ module ipm #(
       end
       ibex_pkg::IPM_OP_MASK: begin
         rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
-        for (int i = 1; i < n; i++) begin
-          // rest_result[i] = random[i-1];
-          rest_result[i] = random[0][i];
+        for (int i = 1; i < N; i++) begin
+          rest_result[i]   = random_mask_temp_q[i-1];
+          rest_result[N-1] = random_mask_curr;
+          // rest_result[i] = random[0][i];
         end
       end
       ibex_pkg::IPM_OP_UNMASK: begin
@@ -595,7 +640,10 @@ module ipm #(
           ibex_pkg::IPM_OP_MUL: begin
             ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
           end
-          ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_UNMASK: begin
+          ibex_pkg::IPM_OP_MASK: begin
+            ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
+          end
+          ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_UNMASK: begin
             ipm_state_d = FIRST;  //require 0 cycle, can already get the result
           end
           default: ;
@@ -606,6 +654,10 @@ module ipm #(
           ibex_pkg::IPM_OP_MUL: begin
             ipm_state_d = (i_d == $bits(i_d)'(N - 1) && j_d == $bits(j_d)'(N - 1)) ? LAST :
                 COMPUTE;  //require n^2 cycles to complete
+          end
+          ibex_pkg::IPM_OP_MASK: begin
+            ipm_state_d = (j_d + 1 == $bits(j_d)'(N - 1)) ? LAST :
+                COMPUTE;  //require (n-k) or (N-1) cycles to complete
           end
           default: ;
         endcase
@@ -656,7 +708,8 @@ module ipm #(
           if (move_q) begin  // toggle the request
             move_d = 0;
             // U_prime_d = random[0];
-            U_prime_d = random[i_d][j_d];
+            U_prime_d = random_mask_curr;
+            // U_prime_d = random[i_d][j_d];
             mul_req_random = 1;
           end else begin
             move_d = 1;
@@ -685,7 +738,9 @@ module ipm #(
       ibex_pkg::IPM_OP_MASK: begin
         for (int i = 0; i < 3; i++) begin
           // multiplier_inputs_a[i] = random[i];
-          multiplier_inputs_a[i] = random[0][i+1];
+          if (i < 2) multiplier_inputs_a[i] = random_mask_temp_q[i];
+          else multiplier_inputs_a[i] = random_mask_curr;
+          // multiplier_inputs_a[i] = random[0][i+1];
           multiplier_inputs_b[i] = L_prime[i+1];
         end
       end
@@ -715,10 +770,9 @@ module ipm #(
     i_d = i_q;
     j_d = j_q;
 
-    // if (ipm_en) begin
-    if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL
+    if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL and MASK
       //When the current state is FIRST or COMPUTE,
-      //which means IPM_MUL is computing
+      //which means MUL or MASK is computing
       if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
         //move_q == signal to indicate 'MOVE'
         if (move_q) begin : move_index
@@ -737,15 +791,27 @@ module ipm #(
         i_d = 0;
         j_d = 0;
       end
+    end else if (operator == ibex_pkg::IPM_OP_MASK) begin
+      if (ipm_state_q == LAST) begin
+        j_d = 0;
+      end else if (position_q == 0) begin
+        j_d = j_q + 1;
+      end else begin
+        j_d = 0;
+      end
     end else begin : not_mul_clear_index
       i_d = 0;
       j_d = 0;
     end
-    // end
   end
 
   // assign valid_o = ipm_state_q == DONE || ipm_state_q == LAST || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
-  assign valid_o = ipm_state_q == LAST || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
+  assign valid_o = ipm_state_q == LAST || 
+                  (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL && operator != ibex_pkg::IPM_OP_MASK) || 
+                  (ipm_state_q == FIRST && operator == ibex_pkg::IPM_OP_MASK && position_q != $bits(
+      position_q
+  )'(0));
+  //TODO: cope with != condition for extensibility
 
   // always_comb begin
   //   result_o = {8 * N{1'b0}};
@@ -768,7 +834,7 @@ module ipm #(
     result_o[31-:8] = rest_result[0];
     result_o[23-:8] = rest_result[1];
     result_o[15-:8] = rest_result[2];
-    result_o[7-:8] = rest_result[3];
+    result_o[7-:8]  = rest_result[3];
   end
 
 

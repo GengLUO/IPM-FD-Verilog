@@ -45,6 +45,7 @@ module ipm_tb;
     logic [31:0] temp1 [0:1];
     logic [31:0] temp2 [0:1];
     logic [31:0] temp3 [0:1];
+    logic [5:0] need_cycle;
 
     ipm #(
         .n(n),
@@ -82,8 +83,10 @@ module ipm_tb;
 //            #((10*N*N-5)/5*4);
 //        end else #5;
         if(op == ibex_pkg::IPM_OP_MUL) begin
-            #((10*N*N-5)/5);
-            #((10*N*N-5)/5*4);
+            #((10*need_cycle-5)/5);
+            #((10*need_cycle-5)/5*4);
+        end else if (op == ibex_pkg::IPM_OP_MASK) begin
+            #((10*need_cycle-5));
         end else #5;
         if (result_o == expected_result) begin
             $display("Test successful completed. Result: %h", result_o);
@@ -119,6 +122,7 @@ module ipm_tb;
         ipm_operator_i = ibex_pkg::IPM_OP_MUL;
         expected_result = 0;
         correct = 0;
+        need_cycle = 0;
 
         // Reset the design
         #50;
@@ -131,25 +135,37 @@ module ipm_tb;
 //        perform_operation(32'h63343a1e, 32'h6b7a52da, ibex_pkg::IPM_OP_HOMOG, 32'hd5343a1e);
 //        perform_operation(32'ha8413f61, 32'h6b7a52da, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2);
         //////////////MASK
+        need_cycle = n-k;
         perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hf5413f61);
         #50;
+        need_cycle = 1;
         perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'ha8413f61);
         
+        need_cycle = n-k;
         perform_operation(32'h37000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'he3413f61);
+        need_cycle = 1;
         perform_operation(32'h37000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hbe413f61);
         /////////////MULT
+        need_cycle = N*N;
         perform_operation(32'hf5413f61, 32'he3413f61, ibex_pkg::IPM_OP_MUL, 32'ha2d56509);
         #50;
+        need_cycle = N*N;
         perform_operation(32'ha8413f61, 32'hbe413f61, ibex_pkg::IPM_OP_MUL, 32'hd89b0dcd);
         /////////////HOMOG
+        need_cycle = 1;
         perform_operation(32'ha2d56509, 32'hd89b0dcd, ibex_pkg::IPM_OP_HOMOG, 32'h66d56509);
         ////////////SQUARE
+        need_cycle = 1;
         perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'h575e2de3);
+        need_cycle = 1;
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2);
         /////////////HOMOG
+        need_cycle = 1;
         perform_operation(32'h575e2de3, 32'hb68c9dc2, ibex_pkg::IPM_OP_HOMOG, 32'hd05e2de3);
         //////////////UNMASK
+        need_cycle = 1;
         perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
+        need_cycle = 1;
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         
 //        #50;
