@@ -52,7 +52,6 @@ module ipm #(
     FIRST,
     COMPUTE,
     LAST
-    // DONE
   } ipm_state_e;
 
   // FSM
@@ -77,7 +76,7 @@ module ipm #(
   logic [7:0] multiplier_inputs_b[0:2];
   logic [7:0] multiplier_results[0:2];
 
-  //registers to hold the intermediate values
+  //registers to hold the multiplication intermediate values
   logic [7:0] mult_result[0:N-1];
 
   logic [7:0] rest_result[0:N-1];
@@ -90,6 +89,7 @@ module ipm #(
   //////////////////////
   // hardcoded random //
   //////////////////////
+
   // logic [7:0] random[4][4];
   // initial begin
   //   random[0][0] = 8'd43;
@@ -113,12 +113,14 @@ module ipm #(
   //   random[3][3] = 8'd59;
   // end
 
-  ///////////
-  // SQ box//
-  ///////////
-  logic [7:0] sq_res_block[0:3];
-  sq sq_inst (
-      .sq_i(a_i),
+  ////////////
+  // SQ box //
+  ////////////
+  logic [7:0] sq_res_block[0:N-1];
+  sq #(
+      .N(N)
+  ) sq_inst (
+      .sq_i(a),
       .sq_o(sq_res_block)
   );
 
@@ -131,7 +133,7 @@ module ipm #(
   logic [7:0] L_prime[0:N-1];
   logic [7:0] L_prime_inv[0:N-1];
   Lbox #(
-      .n(n),
+      .N(N),
       .k(k)
   ) Lbox_inst (
       .position(position_Lbox),
@@ -208,7 +210,7 @@ module ipm #(
 
   always_comb begin
     req_random_mux = 0;
-    
+
     if (ipm_sel) begin
       unique case (operator)
         ibex_pkg::IPM_OP_MUL: begin
@@ -222,39 +224,31 @@ module ipm #(
     end
   end
 
-  logic [7:0] random_mask_temp_q[0:1];
-  logic [7:0] random_mask_temp_d[0:1];
-  logic [7:0] random_mask_curr;
-  // logic [7:0] random[0:2];
-  // always_comb begin
-  //   for (int i = 0; i < 3; i++) begin
-  //     random[3-1-i] = prng[8*i+:8];
-  //   end
-  // end
-  assign random_mask_curr = prng;
+  //Need to store the N-2 random masks, with another 1 from the current prng to form the N-1 masks to be used
+  logic [7:0] random_mask_temp_q[0:N-2];
+  logic [7:0] random_mask_temp_d[0:N-2];
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      for (int i = 0; i < 2; i++) begin
+      for (int i = 0; i < N - 1; i++) begin
         random_mask_temp_q[i] <= 0;
       end
     end else if (ipm_en) begin
-      for (int i = 0; i < 2; i++) begin
+      for (int i = 0; i < N - 1; i++) begin
         random_mask_temp_q[i] <= random_mask_temp_d[i];
       end
     end
   end
 
   always_comb begin
-    for (int i = 0; i < 2; i++) begin
+    for (int i = 0; i < N - 1; i++) begin
       random_mask_temp_d[i] = random_mask_temp_q[i];
     end
     unique case (operator)
       ibex_pkg::IPM_OP_MASK: begin
-        if (position_q == $bits(
-                position_q
-            )'(0)) begin  //only update the random number registers when compuiting on the first row
-          random_mask_temp_d[j_q] = random_mask_curr;
+        if (position_q == $bits(position_q)'(0)) begin
+          //only update the random number registers when compuiting on the first row
+          random_mask_temp_d[j_q] = prng;
         end
       end
       default: ;
@@ -356,7 +350,7 @@ module ipm #(
         rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
         for (int i = 1; i < N; i++) begin
           rest_result[i]   = random_mask_temp_q[i-1];
-          rest_result[N-1] = random_mask_curr;
+          rest_result[N-1] = prng;
           // rest_result[i] = random[0][i];
         end
       end
@@ -440,7 +434,7 @@ module ipm #(
   end
 
   always_comb begin
-    U_prime = (i_q == j_q) ? 0 : random_mask_curr;
+    U_prime = (i_q == j_q) ? 0 : prng;
   end
 
   always_comb begin
@@ -468,7 +462,7 @@ module ipm #(
         for (int i = 0; i < 3; i++) begin
           // multiplier_inputs_a[i] = random[i];
           if (i < 2) multiplier_inputs_a[i] = random_mask_temp_q[i];
-          else multiplier_inputs_a[i] = random_mask_curr;
+          else multiplier_inputs_a[i] = prng;
           // multiplier_inputs_a[i] = random[0][i+1];
           multiplier_inputs_b[i] = L_prime[i+1];
         end

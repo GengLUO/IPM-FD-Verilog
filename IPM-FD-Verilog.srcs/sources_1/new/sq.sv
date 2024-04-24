@@ -19,9 +19,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module sq (
-    input  logic [31:0] sq_i,
-    output logic [7:0] sq_o[0:3]
+module sq #(
+    parameter N = 4
+) (
+    input  logic [7:0] sq_i [0:N-1],
+    output logic [7:0] sq_o [0:N-1]
 );
 
   logic [7:0] sq[0:255];
@@ -281,10 +283,11 @@ module sq (
     assign sq[253]= 8'h17;
     assign sq[254]= 8'h12;
     assign sq[255]= 8'h13;
-    
-  assign sq_o[0] = sq[sq_i[31-:8]];
-  assign sq_o[1] = sq[sq_i[23-:8]];
-  assign sq_o[2] = sq[sq_i[15-:8]];
-  assign sq_o[3]  = sq[sq_i[7-:8]];
+
+  always_comb begin
+    for (int i = 0; i < N; i++) begin
+      sq_o[i] = sq[sq_i[i]];
+    end
+  end
 
 endmodule

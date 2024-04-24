@@ -20,15 +20,13 @@
 
 
 module Lbox #(
-    parameter n = 4,
-    parameter k = 1
+    parameter k = 1,
+    parameter N = 4
 ) (
     input logic [$clog2(k):0] position,
     output logic [7:0] L_prime[0:N-1],
     output logic [7:0] L_prime_inv[0:N-1]
 );
-
-  localparam N = n - k + 1;
 
   // initial begin
   //   $display("bits = %d, %d, %d", $bits(n), $bits(k), $bits(N));
