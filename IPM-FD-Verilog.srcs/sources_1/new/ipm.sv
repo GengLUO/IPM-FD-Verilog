@@ -769,66 +769,75 @@ module ipm #(
     i_d = i_q;
     j_d = j_q;
 
-    if (operator == ibex_pkg::IPM_OP_MUL) begin  //only for MUL and MASK
-      //When the current state is FIRST or COMPUTE,
-      //which means MUL or MASK is computing
-      if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
-        //move_q == signal to indicate 'MOVE'
-        if (move_q) begin : move_index
-          if (j_q < $bits(j_q)'(N - 1)) begin : move_right
+    unique case (operator)
+      ibex_pkg::IPM_OP_MUL: begin
+        //When the current state is FIRST or COMPUTE,
+        //which means MUL or MASK is computing
+        if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
+          //move_q == signal to indicate 'MOVE'
+          if (move_q) begin : move_index
+            if (j_q < $bits(j_q)'(N - 1)) begin : move_right
+              i_d = i_q;
+              j_d = j_q + 1;  //continue to the right cell
+            end else begin : move_next_row
+              i_d = i_q + 1;  // go to next row
+              j_d = i_d;  // j starts from the diagonal
+            end
+          end else begin : stay_index  //i and j do not change
             i_d = i_q;
-            j_d = j_q + 1;  //continue to the right cell
-          end else begin : move_next_row
-            i_d = i_q + 1;  // go to next row
-            j_d = i_d;  // j starts from the diagonal
+            j_d = j_q;
           end
-        end else begin : stay_index  //i and j do not change
-          i_d = i_q;
-          j_d = j_q;
+        end else if (ipm_state_q == LAST) begin : last_cycle_clear_index
+          i_d = 0;
+          j_d = 0;
         end
-      end else if (ipm_state_q == LAST) begin : last_cycle_clear_index
+      end
+
+      ibex_pkg::IPM_OP_MASK: begin
+        if (ipm_state_q == LAST) begin
+          j_d = 0;
+        end else if (position_q == 0) begin
+          j_d = j_q + 1;
+        end else begin
+          j_d = 0;
+        end
+      end
+      default: begin
         i_d = 0;
         j_d = 0;
       end
-    end else if (operator == ibex_pkg::IPM_OP_MASK) begin
-      if (ipm_state_q == LAST) begin
-        j_d = 0;
-      end else if (position_q == 0) begin
-        j_d = j_q + 1;
-      end else begin
-        j_d = 0;
-      end
-    end else begin : not_mul_clear_index
-      i_d = 0;
-      j_d = 0;
-    end
+    endcase
   end
 
-  // assign valid_o = ipm_state_q == DONE || ipm_state_q == LAST || (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL); //TODO: cope with != condition for extensibility
-  assign valid_o = ipm_state_q == LAST || 
-                  (ipm_state_q == FIRST && operator != ibex_pkg::IPM_OP_MUL && operator != ibex_pkg::IPM_OP_MASK) || 
-                  (ipm_state_q == FIRST && operator == ibex_pkg::IPM_OP_MASK && position_q != $bits(
-      position_q
-  )'(0));
-  //TODO: cope with != condition for extensibility
 
-  // always_comb begin
-  //   result_o = {8 * N{1'b0}};
-  //   for (int i = 0; i < N; i++) begin
-  //     if (operator != ibex_pkg::IPM_OP_MUL) begin
-  //       result_o |= (rest_result[i] << $bits(rest_result[i])'((8 * (N - 1 - i))));
-  //     end else if (ipm_state_q == LAST) begin
-  //       result_o |= (rest_result[i] << $bits(rest_result[i])'((8 * (N - 1 - i))));
-  //     end else begin
-  //       result_o |= (mult_result[i] << $bits(rest_result[i])'((8 * (N - 1 - i))));
-  //     end
-  //   end
-  // end
-  // always_comb begin
-  //   for (int i = 0; i < N; i++) begin
-  //     result_o[8*i+:8] = rest_result[N-1-i];
-  //   end
-  // end
+  //////////////////
+  // output logic //
+  //////////////////
+  
+  always_comb begin
+    valid_o = 0;
+    unique case (operator)
+      ibex_pkg::IPM_OP_MUL: begin
+        valid_o = ipm_state_q == LAST;
+      end
+      ibex_pkg::IPM_OP_MASK: begin
+        // For the repetitions, only one cycle is enough
+        if (ipm_state_q == FIRST && position_q != $bits(position_q)'(0)) begin
+          valid_o = 1;
+        end  // For the first time, one need to wait till the LAST state
+        else if (ipm_state_q == LAST) begin
+          valid_o = 1;
+        end else begin
+          valid_o = 0;
+        end
+      end
+      ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_UNMASK: begin
+        valid_o = ipm_state_q == FIRST;
+      end
+      default: ;
+    endcase
+  end
+
   always_comb begin
     result_o[31-:8] = rest_result[0];
     result_o[23-:8] = rest_result[1];
