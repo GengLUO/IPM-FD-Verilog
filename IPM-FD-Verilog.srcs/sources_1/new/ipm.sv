@@ -85,7 +85,7 @@ module ipm #(
   // for multiplication computations
   logic [7:0] T;
   logic [7:0] U;
-  logic [7:0] U_prime_q, U_prime_d;
+  logic [7:0] U_prime;
 
   //////////////////////
   // hardcoded random //
@@ -678,49 +678,48 @@ module ipm #(
     end
   end
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      U_prime_q <= 0;  //only used for ipmmul
-    end else if (ipm_en) begin
-      U_prime_q <= U_prime_d;  //only used for ipmmul
-    end
-  end
-
   always_comb begin
     move_d = 1;
-    U_prime_d = 0;
-    mul_req_random = 0;
-    for (int i = 0; i < 3; i++) begin
-      multiplier_inputs_a[i] = 0;
-      multiplier_inputs_b[i] = 0;
-    end
-    T = 0;
-    U = 0;
 
     unique case (operator)
       ibex_pkg::IPM_OP_MUL: begin
         // if (ipm_en) begin
         if (i_d == j_d) begin  // next cell is at the diagonal, U_prime is 0, need random data for T
           move_d = 1;  //need to 'MOVE'
-          U_prime_d = 0;
-          mul_req_random = 0;
         end else begin  //next cell is not at the diagonal
           if (move_q) begin  // toggle the request
             move_d = 0;
-            // U_prime_d = random[0];
-            U_prime_d = random_mask_curr;
-            // U_prime_d = random[i_d][j_d];
-            mul_req_random = 1;
           end else begin
             move_d = 1;
-            U_prime_d = U_prime_q;
-            mul_req_random = 0;
           end
         end
       end
       // end
       default: ;
     endcase
+  end
+
+  always_comb begin
+    mul_req_random = 0;
+
+    if (operator == ibex_pkg::IPM_OP_MUL) begin
+      if (index_i < index_j) begin
+        mul_req_random = 1;
+      end
+    end
+  end
+
+  always_comb begin
+    U_prime = (i_q == j_q) ? 0 : random_mask_curr;
+  end
+
+  always_comb begin
+    for (int i = 0; i < 3; i++) begin
+      multiplier_inputs_a[i] = 0;
+      multiplier_inputs_b[i] = 0;
+    end
+    T = 0;
+    U = 0;
 
     unique case (operator)
       ibex_pkg::IPM_OP_MUL: begin
@@ -731,7 +730,7 @@ module ipm #(
         multiplier_inputs_b[1] = L_prime[index_j];
         T = multiplier_results[1];
 
-        multiplier_inputs_a[2] = U_prime_q;
+        multiplier_inputs_a[2] = U_prime;
         multiplier_inputs_b[2] = gf_inv[L_prime[index_i]];
         U = multiplier_results[2];
       end
