@@ -168,6 +168,12 @@ module ipm_tb;
         need_cycle = 1;
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000);
         
+        need_cycle = 1;
+        perform_operation(32'h0057d05e, 32'h11000000, ibex_pkg::IPM_OP_MUL_CONST, 32'h00507fc9);
+        
+        need_cycle = 1;
+        perform_operation(32'h00002de3, 32'h11000000, ibex_pkg::IPM_OP_MUL_CONST, 32'h0000cb51);
+        
 //        #50;
 //        perform_operation_with_random_masks(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'h21000000);
 //        perform_mult_with_random_masks(32'h04000000, 32'h04000000, ibex_pkg::IPM_OP_MUL, 32'h10000000);

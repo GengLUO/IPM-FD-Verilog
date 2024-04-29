@@ -198,7 +198,8 @@ package ibex_pkg;
     IPM_OP_SQUARE,
     IPM_OP_HOMOG,
     IPM_OP_MASK,
-    IPM_OP_UNMASK
+    IPM_OP_UNMASK,
+    IPM_OP_MUL_CONST
   } ipm_op_e;
 
   //////////////////////////////////

@@ -155,6 +155,9 @@ module ipm #(
         ibex_pkg::IPM_OP_HOMOG: begin
           position_d = (position_q + 2 < $bits(position_d)'(k)) ? position_q + 1 : 0;
         end
+        ibex_pkg::IPM_OP_MUL_CONST : begin
+          position_d = 0;
+        end
         default: begin
           position_d = (position_q + 1 < $bits(position_d)'(k)) ? position_q + 1 : 0;
         end
@@ -353,6 +356,11 @@ module ipm #(
       ibex_pkg::IPM_OP_UNMASK: begin
         rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
       end
+      ibex_pkg::IPM_OP_MUL_CONST: begin
+        for (int i = 1; i < N; i++) begin
+          rest_result[i] = multiplier_results[i-1];
+        end
+      end
       default: ;
     endcase
   end
@@ -373,7 +381,7 @@ module ipm #(
           ibex_pkg::IPM_OP_MASK: begin
             ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
           end
-          ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_UNMASK: begin
+          ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_UNMASK, ibex_pkg::IPM_OP_MUL_CONST: begin
             ipm_state_d = FIRST;  //require 0 cycle, can already get the result
           end
           default: ;
@@ -395,7 +403,6 @@ module ipm #(
       LAST: begin
         ipm_state_d = FIRST;
       end
-      // DONE: ipm_state_d = FIRST;
       default: ipm_state_d = IDLE;
     endcase
   end
@@ -450,6 +457,12 @@ module ipm #(
         for (int i = 0; i < 3; i++) begin
           multiplier_inputs_a[i] = a[i+1];
           multiplier_inputs_b[i] = L_prime[i+1];
+        end
+      end
+      ibex_pkg::IPM_OP_MUL_CONST: begin
+        for (int i = 0; i < 3; i++) begin
+          multiplier_inputs_a[i] = a[i+1];
+          multiplier_inputs_b[i] = b[0];
         end
       end
       default: ;
@@ -534,7 +547,7 @@ module ipm #(
           valid_o = 0;
         end
       end
-      ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_UNMASK: begin
+      ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_UNMASK, ibex_pkg::IPM_OP_MUL_CONST: begin
         valid_o = ipm_state_q == FIRST;
       end
       default: ;
