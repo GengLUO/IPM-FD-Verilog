@@ -58,14 +58,10 @@ module ipm #(
   ipm_state_e ipm_state_q, ipm_state_d;
 
   // signal to indicate moving to next cell
-  logic move_q, move_d;
 
   // Loop indices
   logic [$clog2(N)-1:0] i_q, j_q, i_d, j_d;
 
-  logic [$clog2(N)-1:0] index_i, index_j;  //the true index to be performed on the matrix
-  assign index_i = move_q ? i_q : j_q;
-  assign index_j = move_q ? j_q : i_q;
 
   // multipliers
   /* verilator lint_off UNOPTFLAT */
@@ -185,7 +181,7 @@ module ipm #(
     mul_req_random = 0;
 
     if (operator == ibex_pkg::IPM_OP_MUL) begin
-      if (index_i < index_j) begin
+      if (i_q > j_q) begin
         mul_req_random = 1;
       end
     end
@@ -329,7 +325,7 @@ module ipm #(
             for (int i = 0; i < N; i++) begin
               rest_result[i] = mult_result[i];
             end
-            rest_result[index_i] = mult_result[index_i] ^ T ^ U;
+            rest_result[i_q] = mult_result[i_q] ^ T ^ U;
           end
           default: ;
         endcase
@@ -404,35 +400,6 @@ module ipm #(
     endcase
   end
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin : move_signal
-    if (!rst_ni) begin
-      move_q <= 0;
-    end else if (ipm_en) begin
-      move_q <= move_d;
-    end
-  end
-
-  always_comb begin
-    move_d = 1;
-
-    unique case (operator)
-      ibex_pkg::IPM_OP_MUL: begin
-        // if (ipm_en) begin
-        if (i_d == j_d) begin  // next cell is at the diagonal, U_prime is 0, need random data for T
-          move_d = 1;  //need to 'MOVE'
-        end else begin  //next cell is not at the diagonal
-          if (move_q) begin  // toggle the request
-            move_d = 0;
-          end else begin
-            move_d = 1;
-          end
-        end
-      end
-      // end
-      default: ;
-    endcase
-  end
-
   always_comb begin
     U_prime = (i_q == j_q) ? 0 : prng;
   end
@@ -447,15 +414,15 @@ module ipm #(
 
     unique case (operator)
       ibex_pkg::IPM_OP_MUL: begin
-        multiplier_inputs_a[0] = a[index_i];
-        multiplier_inputs_b[0] = b[index_j];
+        multiplier_inputs_a[0] = a[i_q];
+        multiplier_inputs_b[0] = b[j_q];
 
         multiplier_inputs_a[1] = multiplier_results[0];
-        multiplier_inputs_b[1] = L_prime[index_j];
+        multiplier_inputs_b[1] = L_prime[j_q];
         T = multiplier_results[1];
 
         multiplier_inputs_a[2] = U_prime;
-        multiplier_inputs_b[2] = L_prime_inv[index_i];
+        multiplier_inputs_b[2] = L_prime_inv[i_q];
         U = multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MASK: begin
@@ -499,17 +466,29 @@ module ipm #(
         //which means MUL or MASK is computing
         if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
           //move_q == signal to indicate 'MOVE'
-          if (move_q) begin : move_index
-            if (j_q < $bits(j_q)'(N - 1)) begin : move_right
+          if (j_q > i_q) begin
+            i_d = j_q;
+            j_d = i_q;
+          end
+          else if (i_q == j_q) begin
+            if(j_q < $bits(j_q)'(N - 1)) begin : move_right
               i_d = i_q;
               j_d = j_q + 1;  //continue to the right cell
-            end else begin : move_next_row
+            end
+            else begin : move_next_row
               i_d = i_q + 1;  // go to next row
               j_d = i_d;  // j starts from the diagonal
             end
-          end else begin : stay_index  //i and j do not change
-            i_d = i_q;
-            j_d = j_q;
+          end
+          else begin //i_q > j_q, in the mirrored region
+            if(i_q < $bits(i_q)'(N - 1)) begin : mirror_and_move_right
+              i_d = j_q;
+              j_d = i_q + 1;
+            end
+            else begin : next_one_on_the_diagonal
+              i_d = j_q + 1;
+              j_d = j_q + 1;
+            end
           end
         end else if (ipm_state_q == LAST) begin : last_cycle_clear_index
           i_d = 0;
