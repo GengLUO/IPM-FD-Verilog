@@ -126,8 +126,8 @@ module ipm #(
 
   logic [$clog2(k):0] position_Lbox, position_q, position_d;
 
-  logic [7:0] L_prime[0:N-1];
-  logic [7:0] L_prime_inv[0:N-1];
+  logic [7:0] L_prime[0:N-1-1];
+  logic [7:0] L_prime_inv[0:N-1-1];
   Lbox #(
       .N(N),
       .k(k)
@@ -425,11 +425,11 @@ module ipm #(
         multiplier_inputs_b[0] = b[j_q];
 
         multiplier_inputs_a[1] = multiplier_results[0];
-        multiplier_inputs_b[1] = L_prime[j_q];
+        multiplier_inputs_b[1] = L_prime[j_q-1];
         T = multiplier_results[1];
 
         multiplier_inputs_a[2] = U_prime;
-        multiplier_inputs_b[2] = L_prime_inv[i_q];
+        multiplier_inputs_b[2] = L_prime_inv[i_q-1];
         U = multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MASK: begin
@@ -438,25 +438,25 @@ module ipm #(
           if (i < 2) multiplier_inputs_a[i] = random_mask_temp_q[i];
           else multiplier_inputs_a[i] = prng;
           // multiplier_inputs_a[i] = random[0][i+1];
-          multiplier_inputs_b[i] = L_prime[i+1];
+          multiplier_inputs_b[i] = L_prime[i+1-1];
         end
       end
       ibex_pkg::IPM_OP_HOMOG: begin
         for (int i = 0; i < 3; i++) begin
-          multiplier_inputs_a[i] = L_prime[i+1];
+          multiplier_inputs_a[i] = L_prime[i+1-1];
           multiplier_inputs_b[i] = a[i+1] ^ b[i+1];
         end
       end
       ibex_pkg::IPM_OP_SQUARE: begin
         for (int i = 0; i < 3; i++) begin
           multiplier_inputs_a[i] = sq_res_block[i+1];
-          multiplier_inputs_b[i] = L_prime[i+1];
+          multiplier_inputs_b[i] = L_prime[i+1-1];
         end
       end
       ibex_pkg::IPM_OP_UNMASK: begin
         for (int i = 0; i < 3; i++) begin
           multiplier_inputs_a[i] = a[i+1];
-          multiplier_inputs_b[i] = L_prime[i+1];
+          multiplier_inputs_b[i] = L_prime[i+1-1];
         end
       end
       ibex_pkg::IPM_OP_MUL_CONST: begin
