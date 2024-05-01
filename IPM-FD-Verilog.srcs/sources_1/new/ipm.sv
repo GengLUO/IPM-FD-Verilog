@@ -425,11 +425,11 @@ module ipm #(
         multiplier_inputs_b[0] = b[j_q];
 
         multiplier_inputs_a[1] = multiplier_results[0];
-        multiplier_inputs_b[1] = L_prime[j_q-1];
+        multiplier_inputs_b[1] = j_q == 0 ? 1 : L_prime[j_q-1];
         T = multiplier_results[1];
 
         multiplier_inputs_a[2] = U_prime;
-        multiplier_inputs_b[2] = L_prime_inv[i_q-1];
+        multiplier_inputs_b[2] = i_q == 0 ? 1 : L_prime_inv[i_q-1];
         U = multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MASK: begin
