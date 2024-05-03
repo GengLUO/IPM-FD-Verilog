@@ -365,8 +365,8 @@ module ipm #(
         rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MUL_CONST: begin
-        for (int i = 1; i < 4; i++) begin
-          rest_result[i] = multiplier_results[i-1];
+        for (int i = 0; i < N; i++) begin
+          rest_result[i] = multiplier_results[i];
         end
       end
       default: ;
