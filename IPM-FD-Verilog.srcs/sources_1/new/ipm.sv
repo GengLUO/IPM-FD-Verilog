@@ -501,7 +501,7 @@ module ipm #(
       ibex_pkg::IPM_OP_MUL_CONST: begin
         for (int i = 0; i < 4; i++) begin
           multiplier_inputs_a[i] = a[i];
-          multiplier_inputs_b[i] = b[0];
+          multiplier_inputs_b[i] = b[3];
         end
       end
       default: ;
