@@ -63,11 +63,11 @@ module ipm #(
   // multipliers
   /* verilator lint_off UNOPTFLAT */
   /* verilator lint_off IMPERFECTSCH */
-  logic [7:0] multiplier_inputs_a[0:2];
+  logic [7:0] multiplier_inputs_a[0:3];
   /* verilator lint_on UNOPTFLAT*/
   /* verilator lint_on IMPERFECTSCH */
-  logic [7:0] multiplier_inputs_b[0:2];
-  logic [7:0] multiplier_results[0:2];
+  logic [7:0] multiplier_inputs_b[0:3];
+  logic [7:0] multiplier_results[0:3];
 
   //registers to hold the multiplication intermediate values
   logic [7:0] mult_result[0:3];
@@ -294,6 +294,11 @@ module ipm #(
       .rs2(multiplier_inputs_b[2]),
       .rd (multiplier_results[2])
   );
+  gfmul gfmul_inst_3 (
+      .rs1(multiplier_inputs_a[3]),
+      .rs2(multiplier_inputs_b[3]),
+      .rd (multiplier_results[3])
+  );
 
   // State transition and output logic
   always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -415,7 +420,7 @@ module ipm #(
   end
 
   always_comb begin
-    for (int i = 0; i < 3; i++) begin
+    for (int i = 0; i < 4; i++) begin
       multiplier_inputs_a[i] = 0;
       multiplier_inputs_b[i] = 0;
     end
@@ -494,7 +499,7 @@ module ipm #(
         end
       end
       ibex_pkg::IPM_OP_MUL_CONST: begin
-        for (int i = 0; i < 3; i++) begin
+        for (int i = 0; i < 4; i++) begin
           multiplier_inputs_a[i] = a[i];
           multiplier_inputs_b[i] = b[0];
         end
