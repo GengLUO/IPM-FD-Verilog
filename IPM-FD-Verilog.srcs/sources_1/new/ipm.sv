@@ -196,7 +196,7 @@ module ipm #(
   always_comb begin
     mask_req_random = 0;
 
-    if (operator == ibex_pkg::IPM_OP_MASK) begin
+    if (operator == ibex_pkg::IPM_OP_MASK || operator == ibex_pkg::IPM_OP_REFRESH) begin
       if (position_q == $bits(position_q)'(0) && ipm_state_q != LAST) begin
         // when computing on the first row, need to require random
         // but not the LAST
@@ -218,7 +218,7 @@ module ipm #(
         ibex_pkg::IPM_OP_MUL: begin
           req_random_mux = mul_req_random;
         end
-        ibex_pkg::IPM_OP_MASK: begin
+        ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
           req_random_mux = mask_req_random;
         end
         default: ;
@@ -247,7 +247,7 @@ module ipm #(
       random_mask_temp_d[i] = random_mask_temp_q[i];
     end
     unique case (operator)
-      ibex_pkg::IPM_OP_MASK: begin
+      ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
         if (position_q == $bits(position_q)'(0)) begin
           //only update the random number registers when compuiting on the first row
           random_mask_temp_d[j_q] = prng;
@@ -361,6 +361,13 @@ module ipm #(
         end
         rest_result[N-1] = prng;
       end
+      ibex_pkg::IPM_OP_REFRESH: begin
+        rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
+        for (int i = 1; i < N; i++) begin
+          rest_result[i] = random_mask_temp_q[i-1] ^ a[i];
+        end
+        rest_result[N-1] = prng ^ a[N-1];
+      end
       ibex_pkg::IPM_OP_UNMASK: begin
         rest_result[0] = a[0] ^ multiplier_results[0] ^ multiplier_results[1] ^ multiplier_results[2];
       end
@@ -386,11 +393,11 @@ module ipm #(
           ibex_pkg::IPM_OP_MUL: begin
             ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
           end
-          ibex_pkg::IPM_OP_MASK: begin
+          ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
             ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
           end
           ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_UNMASK, ibex_pkg::IPM_OP_MUL_CONST: begin
-            ipm_state_d = FIRST;  //require 0 cycle, can already get the result
+            ipm_state_d = FIRST;  //require 1 cycle, can already get the result
           end
           default: ;
         endcase
@@ -401,7 +408,7 @@ module ipm #(
             ipm_state_d = (i_d == $bits(i_d)'(N - 1) && j_d == $bits(j_d)'(N - 1)) ? LAST :
                 COMPUTE;  //require n^2 cycles to complete
           end
-          ibex_pkg::IPM_OP_MASK: begin
+          ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
             ipm_state_d = (j_d + 1 == $bits(j_d)'(N - 1)) ? LAST :
                 COMPUTE;  //require (n-k) or (N-1) cycles to complete
           end
@@ -440,7 +447,7 @@ module ipm #(
         multiplier_inputs_b[2] = L_prime_inv[i_q];
         U = multiplier_results[2];
       end
-      ibex_pkg::IPM_OP_MASK: begin
+      ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
         for (int i = 0; i < 3; i++) begin
           // multiplier_inputs_a[i] = random[i];
           if (i < N - 2) begin
@@ -518,7 +525,7 @@ module ipm #(
         //which means MUL or MASK is computing
         if (ipm_state_q != IDLE && ipm_state_q != LAST) begin
           //move_q == signal to indicate 'MOVE'
-          if (j_q > i_q) begin
+          if (j_q > i_q) begin: mirror
             i_d = j_q;
             j_d = i_q;
           end else if (i_q == j_q) begin
@@ -544,7 +551,7 @@ module ipm #(
         end
       end
 
-      ibex_pkg::IPM_OP_MASK: begin
+      ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
         if (ipm_state_q == LAST) begin
           j_d = 0;
         end else if (position_q == 0) begin
@@ -571,7 +578,7 @@ module ipm #(
       ibex_pkg::IPM_OP_MUL: begin
         valid_o = ipm_state_q == LAST;
       end
-      ibex_pkg::IPM_OP_MASK: begin
+      ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
         // For the repetitions, only one cycle is enough
         if (ipm_state_q == FIRST && position_q != $bits(position_q)'(0)) begin
           valid_o = 1;
