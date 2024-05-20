@@ -1,5 +1,5 @@
 module ipm #(
-    parameter n = 5,
+    parameter n = 4,
     parameter k = 2
 ) (
     input logic clk_i,
@@ -394,7 +394,7 @@ module ipm #(
             ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
           end
           ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
-            ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : COMPUTE;
+            ipm_state_d = (i_d == $bits(i_d)'(0) && j_d == $bits(j_d)'(0)) ? FIRST : (j_d + 1 == $bits(j_d)'(N - 1)) ? LAST : COMPUTE;
           end
           ibex_pkg::IPM_OP_HOMOG, ibex_pkg::IPM_OP_SQUARE, ibex_pkg::IPM_OP_UNMASK, ibex_pkg::IPM_OP_MUL_CONST: begin
             ipm_state_d = FIRST;  //require 1 cycle, can already get the result
@@ -448,65 +448,36 @@ module ipm #(
         U = multiplier_results[2];
       end
       ibex_pkg::IPM_OP_MASK, ibex_pkg::IPM_OP_REFRESH: begin
-        for (int i = 0; i < 3; i++) begin
+        for (int i = 0; i < N - 1; i++) begin
           // multiplier_inputs_a[i] = random[i];
           if (i < N - 2) begin
             multiplier_inputs_a[i] = random_mask_temp_q[i];
-          end else if (i == N - 2) begin
-            multiplier_inputs_a[i] = prng;
           end else begin
-            multiplier_inputs_a[i] = 0;
-          end
-          // multiplier_inputs_a[i] = random[0][i+1];
-
-          if (i < N - 1) begin
-            multiplier_inputs_b[i] = L_prime[i+1];
-          end
-          else begin
-            multiplier_inputs_b[i] = 0;
-          end
+            multiplier_inputs_a[i] = prng;
+          end 
+          multiplier_inputs_b[i] = L_prime[i+1];
         end
       end
       ibex_pkg::IPM_OP_HOMOG: begin
-        for (int i = 0; i < 3; i++) begin
-          if (i < N - 1) begin
-            multiplier_inputs_a[i] = L_prime[i+1];
-          end
-          else begin
-            multiplier_inputs_a[i] = 0;
-          end
-
-          
+        for (int i = 0; i < N - 1; i++) begin
+          multiplier_inputs_a[i] = L_prime[i+1];
           multiplier_inputs_b[i] = a[i+1] ^ b[i+1];
         end
       end
       ibex_pkg::IPM_OP_SQUARE: begin
-        for (int i = 0; i < 3; i++) begin
-          if (i < N - 1) begin
-            multiplier_inputs_a[i] = sq_res_block[i+1];
-            multiplier_inputs_b[i] = L_prime[i+1];
-          end
-          else begin
-            multiplier_inputs_a[i] = 0;
-            multiplier_inputs_b[i] = 0;
-          end
-          
+        for (int i = 0; i < N - 1; i++) begin
+          multiplier_inputs_a[i] = sq_res_block[i+1];
+          multiplier_inputs_b[i] = L_prime[i+1];
         end
       end
       ibex_pkg::IPM_OP_UNMASK: begin
-        for (int i = 0; i < 3; i++) begin
+        for (int i = 0; i < N - 1; i++) begin
           multiplier_inputs_a[i] = a[i+1];
-          
-          if (i < N - 1) begin
-            multiplier_inputs_b[i] = L_prime[i+1];
-          end
-          else begin
-            multiplier_inputs_b[i] = 0;
-          end
+          multiplier_inputs_b[i] = L_prime[i+1];
         end
       end
       ibex_pkg::IPM_OP_MUL_CONST: begin
-        for (int i = 0; i < 4; i++) begin
+        for (int i = 0; i < N; i++) begin
           multiplier_inputs_a[i] = a[i];
           multiplier_inputs_b[i] = b[3];
         end

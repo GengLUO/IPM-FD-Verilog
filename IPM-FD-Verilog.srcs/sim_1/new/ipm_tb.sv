@@ -85,7 +85,7 @@ module ipm_tb;
         if(op == ibex_pkg::IPM_OP_MUL) begin
             #((10*need_cycle-5)/5);
             #((10*need_cycle-5)/5*4);
-        end else if (op == ibex_pkg::IPM_OP_MASK || op==ibex_pkg::IPM_OP_REFRESH) begin
+        end else if (op == ibex_pkg::IPM_OP_MASK || op==ibex_pkg::IPM_OP_REFRESH || op==ibex_pkg::IPM_OP_SQUARE) begin
             #((10*need_cycle-5));
         end else #5;
         if (result_o == expected_result) begin
@@ -138,7 +138,7 @@ module ipm_tb;
         //////////////MASK
         need_cycle = n-k;
         perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'hf5413f61, temp);
-        #50;
+//        #50;
         need_cycle = 1;
         perform_operation(32'h21000000, 32'h00000000, ibex_pkg::IPM_OP_MASK, 32'ha8413f61, temp);
         
@@ -156,9 +156,9 @@ module ipm_tb;
         need_cycle = 1;
         perform_operation(32'ha2d56509, 32'hd89b0dcd, ibex_pkg::IPM_OP_HOMOG, 32'h66d56509, temp);
         ////////////SQUARE
-        need_cycle = 1;
+        need_cycle = 2;
         perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'h575e2de3, temp);
-        need_cycle = 1;
+        need_cycle = 2;
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_SQUARE, 32'hb68c9dc2, temp);
         /////////////HOMOG
         need_cycle = 1;
@@ -168,6 +168,11 @@ module ipm_tb;
         perform_operation(32'hf5413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000, temp);
         need_cycle = 1;
         perform_operation(32'ha8413f61, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000, temp);
+        
+        need_cycle = 1;
+        perform_operation(32'h6124b6f4, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000, temp);
+        need_cycle = 1;
+        perform_operation(32'hf6b6d9d3, 32'h00000000, ibex_pkg::IPM_OP_UNMASK, 32'h21000000, temp);
         
         need_cycle = 1;
         perform_operation(32'h0057d05e, 32'h11000000, ibex_pkg::IPM_OP_MUL_CONST, 32'h00507fc9, temp);
